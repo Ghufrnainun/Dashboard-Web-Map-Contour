@@ -10,6 +10,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(ProjectSeeder::class);
+
         // 1. Bikin SATU Project Induk
         $project = Project::factory()->create([
             'name' => 'TESTING: Lapangan Belakang Kampus',
