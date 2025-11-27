@@ -1,10 +1,10 @@
-import L from 'leaflet';
-import * as turf from '@turf/turf';
+import L from "leaflet";
+import * as turf from "@turf/turf";
 
 // Fix Leaflet's default icon path issues
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -21,9 +21,9 @@ L.Icon.Default.mergeOptions({
 window.initMap = function (id) {
     const map = L.map(id).setView([-2.5489, 118.0149], 5);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: '© OpenStreetMap'
+        attribution: "© OpenStreetMap",
     }).addTo(map);
 
     return map;
@@ -31,10 +31,10 @@ window.initMap = function (id) {
 
 /**
  * Add a marker to the map
- * @param {L.Map} map 
- * @param {number} lat 
- * @param {number} lng 
- * @param {string} popupContent 
+ * @param {L.Map} map
+ * @param {number} lat
+ * @param {number} lng
+ * @param {string} popupContent
  * @returns {L.Marker}
  */
 window.addMarker = function (map, lat, lng, popupContent) {
@@ -48,14 +48,16 @@ window.addMarker = function (map, lat, lng, popupContent) {
 /**
  * Generate "Color Contours" using IDW Interpolation and Convex Hull clipping.
  * Renders to a static image overlay to support smooth zooming.
- * 
- * @param {L.Map} map 
+ *
+ * @param {L.Map} map
  * @param {Array} data - Array of objects with latitude, longitude, altitude
  * @returns {Object} { layer, breaks, palette }
  */
 window.generateContours = function (map, data) {
     if (!data || data.length < 3) {
-        console.warn("Not enough points for contour generation (need at least 3).");
+        console.warn(
+            "Not enough points for contour generation (need at least 3)."
+        );
         return null;
     }
 
@@ -64,7 +66,7 @@ window.generateContours = function (map, data) {
     let maxAlt = -Infinity;
     const points = [];
 
-    data.forEach(d => {
+    data.forEach((d) => {
         const lat = parseFloat(d.latitude);
         const lng = parseFloat(d.longitude);
         const alt = parseFloat(d.altitude);
@@ -81,7 +83,7 @@ window.generateContours = function (map, data) {
 
     // 2. Calculate Bounds & Convex Hull
     const turfPoints = turf.featureCollection(
-        points.map(p => turf.point([p.lng, p.lat]))
+        points.map((p) => turf.point([p.lng, p.lat]))
     );
     const hull = turf.convex(turfPoints);
     if (!hull) return null;
@@ -95,7 +97,7 @@ window.generateContours = function (map, data) {
         west: bbox[0] - lngSpan * padding,
         south: bbox[1] - latSpan * padding,
         east: bbox[2] + lngSpan * padding,
-        north: bbox[3] + latSpan * padding
+        north: bbox[3] + latSpan * padding,
     };
 
     // 3. Setup Canvas for IDW
@@ -112,15 +114,16 @@ window.generateContours = function (map, data) {
         width = Math.round(maxDim * aspect);
     }
 
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
 
     // Helper to map LatLng to Canvas X/Y (Linear)
     function toCanvasPoint(lat, lng) {
-        const x = (lng - bounds.west) / (bounds.east - bounds.west) * width;
-        const y = (bounds.north - lat) / (bounds.north - bounds.south) * height; // Lat goes up, Y goes down
+        const x = ((lng - bounds.west) / (bounds.east - bounds.west)) * width;
+        const y =
+            ((bounds.north - lat) / (bounds.north - bounds.south)) * height; // Lat goes up, Y goes down
         return { x, y };
     }
 
@@ -129,7 +132,7 @@ window.generateContours = function (map, data) {
     const pixels = imgData.data;
 
     // Pre-calculate point canvas coordinates
-    const canvasPoints = points.map(p => {
+    const canvasPoints = points.map((p) => {
         const pt = toCanvasPoint(p.lat, p.lng);
         return { ...pt, alt: p.alt };
     });
@@ -173,8 +176,12 @@ window.generateContours = function (map, data) {
             }
 
             // Color Mapping
-            const ratio = Math.max(0, Math.min(1, (val - minAlt) / (maxAlt - minAlt)));
-            const hue = (1 - ratio) * 240;
+            const ratio = Math.max(
+                0,
+                Math.min(1, (val - minAlt) / (maxAlt - minAlt))
+            );
+            // Topographic: Green (120) -> Red (0)
+            const hue = (1 - ratio) * 120;
             const [r, g, b] = hslToRgb(hue / 360, 1, 0.5);
 
             const index = (y * width + x) * 4;
@@ -193,7 +200,7 @@ window.generateContours = function (map, data) {
     // Actually, simpler: Set composite operation to 'destination-in' and draw the hull.
     // Only the overlapping parts (hull) will remain.
 
-    ctx.globalCompositeOperation = 'destination-in';
+    ctx.globalCompositeOperation = "destination-in";
     ctx.beginPath();
     const hullCoords = hull.geometry.coordinates[0];
     hullCoords.forEach((coord, index) => {
@@ -206,15 +213,18 @@ window.generateContours = function (map, data) {
     ctx.fill();
 
     // Reset composite op
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalCompositeOperation = "source-over";
 
     // 6. Create Image Overlay
     const imageUrl = canvas.toDataURL();
-    const imageBounds = [[bounds.south, bounds.west], [bounds.north, bounds.east]];
+    const imageBounds = [
+        [bounds.south, bounds.west],
+        [bounds.north, bounds.east],
+    ];
 
     const layer = L.imageOverlay(imageUrl, imageBounds, {
         opacity: 0.7,
-        interactive: false
+        interactive: false,
     });
 
     layer.addTo(map);
@@ -222,28 +232,31 @@ window.generateContours = function (map, data) {
     return {
         layer: layer,
         breaks: [minAlt, (minAlt + maxAlt) / 2, maxAlt],
-        palette: []
+        palette: [],
     };
 };
 
 /**
  * Add a legend to the map
- * @param {L.Map} map 
- * @param {Array} breaks 
+ * @param {L.Map} map
+ * @param {Array} breaks
  * @returns {L.Control}
  */
 window.addLegend = function (map, breaks) {
-    const legend = L.control({ position: 'bottomright' });
+    const legend = L.control({ position: "bottomright" });
 
     legend.onAdd = function (map) {
-        const div = L.DomUtil.create('div', 'info legend bg-white p-3 rounded shadow-md text-sm');
-        div.style.lineHeight = '1.5';
+        const div = L.DomUtil.create(
+            "div",
+            "info legend bg-white p-3 rounded shadow-md text-sm"
+        );
+        div.style.lineHeight = "1.5";
 
         div.innerHTML = '<strong class="block mb-2">Altitude (m)</strong>';
 
         div.innerHTML += `
             <div style="
-                background: linear-gradient(to right, blue, cyan, lime, yellow, red);
+                background: linear-gradient(to right, #006400, #32CD32, #FFFF00, #FFA500, #FF0000);
                 height: 10px;
                 width: 100%;
                 border-radius: 2px;
@@ -261,6 +274,18 @@ window.addLegend = function (map, breaks) {
     legend.addTo(map);
     return legend;
 };
+
+// Helper: Get Color based on value (Topographic)
+function getColor(value, min, max) {
+    const ratio = (value - min) / (max - min);
+
+    // Topographic style: Green (Low) -> Yellow (Mid) -> Red (High)
+    if (ratio < 0.2) return "#006400"; // Dark Green
+    if (ratio < 0.4) return "#32CD32"; // Lime Green
+    if (ratio < 0.6) return "#FFFF00"; // Yellow
+    if (ratio < 0.8) return "#FFA500"; // Orange
+    return "#FF0000"; // Red
+}
 
 // Helper: HSL to RGB
 function hslToRgb(h, s, l) {

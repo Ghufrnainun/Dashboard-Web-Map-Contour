@@ -39,7 +39,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
             <h5 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <i class="bi bi-table text-green-600"></i> Data Pengukuran Terakhir
+                <i class="bi bi-table text-green-600"></i> Data Pengukuran
             </h5>
         </div>
         <div class="overflow-x-auto">
@@ -60,6 +60,16 @@
                 </tbody>
             </table>
         </div>
+        {{-- Pagination Controls --}}
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+            <button id="btn-prev" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <i class="bi bi-chevron-left"></i> Sebelumnya
+            </button>
+            <span id="page-info" class="text-sm text-gray-700">Halaman 1</span>
+            <button id="btn-next" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                Selanjutnya <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
     </div>
 </div>
 @endsection
@@ -72,6 +82,11 @@
     let markers = [];
     let contourLayer = null;
     let currentData = [];
+    
+    // Pagination Variables
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    let sortedData = [];
 
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -116,8 +131,10 @@
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
-                currentData = data; // Store for toggle usage
-                updateTable(data);
+                currentData = data; // Store raw data
+                sortedData = data.slice().reverse(); // Default sort: newest first
+                
+                updateTable(); // Initial render
                 updateMap(data);
                 
                 // Generate contours if checkbox is checked
@@ -196,19 +213,22 @@
         }
     }
 
-    function updateTable(data) {
+    function updateTable() {
         const tbody = document.querySelector('#data-table tbody');
         tbody.innerHTML = '';
 
-        if (data.length === 0) {
+        if (sortedData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Belum ada data pengukuran.</td></tr>';
+            updatePaginationControls();
             return;
         }
 
-        // Ambil 10 data terakhir (atau semua, tergantung kebutuhan)
-        const recentData = data.slice().reverse().slice(0, 10); 
+        // Pagination Logic
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        const pageData = sortedData.slice(startIndex, endIndex);
 
-        recentData.forEach(item => {
+        pageData.forEach(item => {
             const row = `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${new Date(item.created_at).toLocaleString()}</td>
@@ -220,6 +240,39 @@
             `;
             tbody.innerHTML += row;
         });
+
+        updatePaginationControls();
+    }
+
+    function updatePaginationControls() {
+        const totalPages = Math.ceil(sortedData.length / rowsPerPage);
+        const pageInfo = document.getElementById('page-info');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+
+        if (pageInfo) {
+            pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages || 1}`;
+        }
+
+        if (btnPrev) {
+            btnPrev.disabled = currentPage === 1;
+            btnPrev.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable();
+                }
+            };
+        }
+
+        if (btnNext) {
+            btnNext.disabled = currentPage === totalPages || totalPages === 0;
+            btnNext.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateTable();
+                }
+            };
+        }
     }
 </script>
 @endpush
