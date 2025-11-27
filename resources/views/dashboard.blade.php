@@ -21,10 +21,14 @@
                 <i class="bi bi-arrow-clockwise mr-1.5"></i> Refresh Data
             </button>
         </div>
+        <div class="px-6 py-2 bg-gray-50 border-b border-gray-100 flex items-center">
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="toggle-contours" class="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out" checked>
+                <span class="ml-2 text-sm text-gray-700">Tampilkan Kontur Warna</span>
+            </label>
+        </div>
         <div class="p-0">
-            <div id="map-container" class="h-[500px] bg-gray-100 flex items-center justify-center text-gray-400">
-                <p>Area Peta (Akan diimplementasikan dengan Library Peta seperti Leaflet/Google Maps)</p>
-            </div>
+            <div id="map-container" class="h-[500px] bg-gray-100 z-0"></div>
         </div>
     </div>
 
@@ -60,8 +64,38 @@
 <script>
     const projectId = {{ $project->id }};
     const apiUrl = "{{ route('projects.data', $project->id) }}";
+    let map;
+    let markers = [];
+    let contourLayer = null;
+    let currentData = [];
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map
+        if (window.initMap) {
+            map = window.initMap('map-container');
+        } else {
+            console.error('Map functions not loaded properly');
+        }
+
+        // Toggle Contours Listener
+        document.getElementById('toggle-contours').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                if (!contourLayer && currentData.length > 0) {
+                    updateContours(currentData);
+                } else if (contourLayer) {
+                    map.addLayer(contourLayer);
+                }
+            } else {
+                if (contourLayer) {
+                    map.removeLayer(contourLayer);
+                }
+                if (window.currentLegend) {
+                    map.removeControl(window.currentLegend);
+                    window.currentLegend = null;
+                }
+            }
+        });
+
         loadData();
     });
 
@@ -69,11 +103,78 @@
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
+                currentData = data; // Store for toggle usage
                 updateTable(data);
-                // Disini nanti panggil fungsi updateMap(data)
+                updateMap(data);
+                
+                // Generate contours if checkbox is checked
+                if (document.getElementById('toggle-contours').checked) {
+                    updateContours(data);
+                }
+                
                 console.log("Data loaded:", data);
             })
             .catch(error => console.error('Error fetching data:', error));
+    }
+
+    function updateContours(data) {
+        if (!map || !window.generateContours) return;
+        
+        // Remove existing layer if any
+        if (contourLayer) {
+            map.removeLayer(contourLayer);
+            contourLayer = null;
+        }
+        if (window.currentLegend) {
+            map.removeControl(window.currentLegend);
+            window.currentLegend = null;
+        }
+
+        try {
+            const result = window.generateContours(map, data);
+            if (result) {
+                contourLayer = result.layer;
+                // Add legend
+                if (window.addLegend) {
+                    window.currentLegend = window.addLegend(map, result.min, result.max);
+                }
+            }
+        } catch (e) {
+            console.error("Error generating contours:", e);
+        }
+    }
+
+    function updateMap(data) {
+        if (!map) return;
+
+        // Clear existing markers
+        markers.forEach(marker => marker.remove());
+        markers = [];
+
+        if (data.length === 0) return;
+
+        // Create bounds to fit all markers
+        const bounds = L.latLngBounds();
+
+        data.forEach(item => {
+            const lat = parseFloat(item.latitude);
+            const lng = parseFloat(item.longitude);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const popupContent = `
+                    <b>Time:</b> ${new Date(item.created_at).toLocaleString()}<br>
+                    <b>Alt:</b> ${item.altitude} m<br>
+                    <b>Pressure:</b> ${item.pressure || '-'} hPa
+                `;
+                const marker = window.addMarker(map, lat, lng, popupContent);
+                markers.push(marker);
+                bounds.extend([lat, lng]);
+            }
+        });
+
+        if (markers.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
     }
 
     function updateTable(data) {
@@ -86,8 +187,6 @@
         }
 
         // Ambil 10 data terakhir (atau semua, tergantung kebutuhan)
-        // Kita balik urutannya biar yang baru diatas (kalau dari API belum sort)
-        // Asumsi data dari API urut ID/created_at asc, kita reverse buat tabel
         const recentData = data.slice().reverse().slice(0, 10); 
 
         recentData.forEach(item => {
