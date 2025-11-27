@@ -8,25 +8,34 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class MeasurementFactory extends Factory
 {
     public function definition(): array
-    {
-        // KITA SET SATU TITIK PUSAT (Misal: Lapangan Bola)
-        // Koordinat contoh (Semarang/Jateng)
-        $centerLat = -7.051;
-        $centerLng = 110.435;
+{
+    // Koordinat Pusat (Gedung Sekolah Vokasi Undip)
+    $centerLat = -7.0556; 
+    $centerLng = 110.4348;
+    
+    // Titik acak di sekitar pusat
+    $lat = $centerLat + $this->faker->randomFloat(6, -0.003, 0.003);
+    $lng = $centerLng + $this->faker->randomFloat(6, -0.003, 0.003);
 
-        return [
-            'project_id' => Project::Factory(), // Default (nanti di-override di seeder)
+    // LOGIKA MATEMATIKA: Semakin dekat ke pusat, semakin tinggi (Bikin Gunung)
+    // Hitung jarak ke pusat pake Pythagoras sederhana
+    $distance = sqrt(pow(($lat - $centerLat), 2) + pow(($lng - $centerLng), 2));
+    
+    // Kalo deket pusat (jarak < 0.001) tingginya 180-200m (Puncak)
+    // Kalo jauh, tingginya turun sampe 100m
+    // Rumus: Base 200m dikurangi jarak * faktor
+    $altitude = 200 - ($distance * 40000); 
+    
+    // Tambah noise dikit biar gak terlalu mulus kayak mangkok
+    $altitude += $this->faker->randomFloat(2, -5, 5);
 
-            // Generate titik acak tapi radiusnya DEKAT (cuma geser 0.001 derajat)
-            // Biar seolah-olah surveyor lagi jalan kaki di area itu
-            'latitude'  => $centerLat + $this->faker->randomFloat(6, -0.002, 0.002),
-            'longitude' => $centerLng + $this->faker->randomFloat(6, -0.002, 0.002),
-
-            // Altitude pura-pura naik turun tanah berbukit (100m - 150m)
-            'altitude'  => $this->faker->randomFloat(2, 100, 150),
-
-            'pressure'  => $this->faker->randomFloat(2, 1008, 1013),
-            'created_at' => $this->faker->dateTimeBetween('-1 hour', 'now'),
-        ];
-    }
+    return [
+        'project_id' => \App\Models\Project::factory(),
+        'latitude'  => $lat,
+        'longitude' => $lng,
+        'altitude'  => $altitude, // Pakai altitude hasil hitungan bukit
+        'pressure'  => 1013 - ($altitude / 10), // Fisika: makin tinggi, tekanan makin rendah
+        'created_at' => $this->faker->dateTimeBetween('-1 hour', 'now'),
+    ];
+}
 }

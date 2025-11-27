@@ -136,7 +136,7 @@
                 contourLayer = result.layer;
                 // Add legend
                 if (window.addLegend) {
-                    window.currentLegend = window.addLegend(map, result.min, result.max);
+                    window.currentLegend = window.addLegend(map, result.breaks, result.palette);
                 }
             }
         } catch (e) {

@@ -1,178 +1,335 @@
 import L from 'leaflet';
 import * as turf from '@turf/turf';
 
-// Fix for default marker icon issues in Leaflet with Webpack/Vite
+// Fix Leaflet's default icon path issues
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
 });
 
-export function initMap(elementId, center = [-6.200000, 106.816666], zoom = 13) {
-    const map = L.map(elementId).setView(center, zoom);
+/**
+ * Initialize the Leaflet map
+ * @param {string} id - The DOM ID of the map container
+ * @returns {L.Map} The Leaflet map instance
+ */
+window.initMap = function (id) {
+    const map = L.map(id).setView([-2.5489, 118.0149], 5);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
     }).addTo(map);
 
     return map;
-}
+};
 
-export function addMarker(map, lat, lng, popupContent) {
+/**
+ * Add a marker to the map
+ * @param {L.Map} map 
+ * @param {number} lat 
+ * @param {number} lng 
+ * @param {string} popupContent 
+ * @returns {L.Marker}
+ */
+window.addMarker = function (map, lat, lng, popupContent) {
     const marker = L.marker([lat, lng]).addTo(map);
     if (popupContent) {
         marker.bindPopup(popupContent);
     }
     return marker;
-}
+};
 
-// Example Turf usage (can be expanded)
-export function calculateDistance(point1, point2) {
-    const from = turf.point(point1);
-    const to = turf.point(point2);
-    return turf.distance(from, to, { units: 'kilometers' });
-}
-
-// Expose functions to global scope if needed for inline scripts
-window.initMap = initMap;
-window.addMarker = addMarker;
-window.calculateDistance = calculateDistance;
-window.L = L;
-window.turf = turf;
-
-export function generateContours(map, data, options = {}) {
+/**
+ * Generate "Color Contours" using IDW Interpolation and Convex Hull clipping.
+ * 
+ * @param {L.Map} map 
+ * @param {Array} data - Array of objects with latitude, longitude, altitude
+ * @returns {Object} { layer, breaks, palette }
+ */
+window.generateContours = function (map, data) {
     if (!data || data.length < 3) {
-        console.warn("Not enough data points to generate contours (min 3 needed).");
+        console.warn("Not enough points for contour generation (need at least 3).");
         return null;
     }
 
-    // 1. Convert data to Turf FeatureCollection
-    const points = turf.featureCollection(
-        data.map(item => turf.point([parseFloat(item.longitude), parseFloat(item.latitude)], { altitude: parseFloat(item.altitude) }))
-    );
+    // 1. Prepare Data & Calculate Min/Max
+    let minAlt = Infinity;
+    let maxAlt = -Infinity;
+    const points = [];
 
-    // 2. IDW Interpolation
-    // Create a grid of points with estimated altitude
-    // options.gridType: 'point', 'square', 'hex', 'triangle'
-    // options.property: property name to interpolate
-    // options.units: units for grid cell size
-    const bounds = turf.bbox(points);
-    const cellSize = options.cellSize || 0.05; // km
-    const grid = turf.interpolate(points, cellSize, {
-        gridType: 'point',
-        property: 'altitude',
-        units: 'kilometers',
-        weight: 1 // IDW exponent
+    data.forEach(d => {
+        const lat = parseFloat(d.latitude);
+        const lng = parseFloat(d.longitude);
+        const alt = parseFloat(d.altitude);
+
+        if (!isNaN(lat) && !isNaN(lng) && !isNaN(alt)) {
+            points.push({ lat, lng, alt });
+            if (alt < minAlt) minAlt = alt;
+            if (alt > maxAlt) maxAlt = alt;
+        }
     });
 
-    // 3. Generate Isobands (Contour Polygons)
-    // Define breaks for altitude ranges
-    const minAlt = Math.min(...data.map(d => parseFloat(d.altitude)));
-    const maxAlt = Math.max(...data.map(d => parseFloat(d.altitude)));
+    if (points.length < 3) return null;
+    if (maxAlt === minAlt) maxAlt = minAlt + 1;
 
-    // Create dynamic breaks (e.g., 5 levels)
-    const steps = 6;
-    const stepSize = (maxAlt - minAlt) / steps;
-    const breaks = [];
-    for (let i = 0; i <= steps; i++) {
-        breaks.push(minAlt + (i * stepSize));
+    // 2. Calculate Convex Hull (Boundary)
+    const turfPoints = turf.featureCollection(
+        points.map(p => turf.point([p.lng, p.lat])) // Turf uses [lng, lat]
+    );
+    const hull = turf.convex(turfPoints);
+    if (!hull) return null;
+
+    // 3. Color Function (HSL: Blue -> Red)
+    function getColor(value) {
+        const ratio = Math.max(0, Math.min(1, (value - minAlt) / (maxAlt - minAlt)));
+        const hue = (1 - ratio) * 240; // 240 (Blue) -> 0 (Red)
+        return `hsla(${hue}, 100%, 50%, 0.7)`;
     }
 
-    const isobands = turf.isobands(grid, breaks, { zProperty: 'altitude' });
+    // 4. Create Custom Canvas Layer
+    const CanvasLayer = L.Layer.extend({
+        onAdd: function (map) {
+            this._map = map;
+            this._canvas = L.DomUtil.create('canvas', 'leaflet-heatmap-layer');
+            this._canvas.style.pointerEvents = 'none';
+            this._canvas.style.zIndex = 100;
 
-    // 4. Style and Add to Map
-    const contourLayer = L.geoJSON(isobands, {
-        style: function (feature) {
-            // Ensure value is a number. turf.isobands might return a string range "10-20" or a number.
-            let value = feature.properties.altitude;
-            if (typeof value === 'string') {
-                // If it's a range "10-20", parseFloat will return 10.
-                value = parseFloat(value);
+            const size = this._map.getSize();
+            this._canvas.width = size.x;
+            this._canvas.height = size.y;
+
+            const animated = this._map.options.zoomAnimation && L.Browser.any3d;
+            L.DomUtil.addClass(this._canvas, 'leaflet-zoom-' + (animated ? 'animated' : 'hide'));
+
+            map.getPanes().overlayPane.appendChild(this._canvas);
+            map.on('moveend', this._reset, this);
+            map.on('resize', this._resize, this);
+
+            if (map.options.zoomAnimation && L.Browser.any3d) {
+                map.on('zoomanim', this._animateZoom, this);
             }
 
-            const color = getColor(value, minAlt, maxAlt);
-
-            return {
-                fillColor: color,
-                weight: 1,
-                opacity: 1,
-                color: 'white', // border color
-                dashArray: '3',
-                fillOpacity: 0.7
-            };
+            this._reset();
         },
-        onEachFeature: function (feature, layer) {
-            let val = feature.properties.altitude;
-            let displayVal = val;
 
-            if (typeof val === 'number') {
-                displayVal = `> ${val.toFixed(2)} m`;
-            } else if (typeof val === 'string') {
-                // If it looks like a range, keep it, otherwise try to format
-                if (!val.includes('-')) {
-                    const parsed = parseFloat(val);
-                    if (!isNaN(parsed)) {
-                        displayVal = `> ${parsed.toFixed(2)} m`;
+        onRemove: function (map) {
+            map.getPanes().overlayPane.removeChild(this._canvas);
+            map.off('moveend', this._reset, this);
+            map.off('resize', this._resize, this);
+            if (map.options.zoomAnimation) {
+                map.off('zoomanim', this._animateZoom, this);
+            }
+        },
+
+        _resize: function () {
+            const size = this._map.getSize();
+            this._canvas.width = size.x;
+            this._canvas.height = size.y;
+            this._reset();
+        },
+
+        _reset: function () {
+            const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+            L.DomUtil.setPosition(this._canvas, topLeft);
+            this._draw();
+        },
+
+        _animateZoom: function (e) {
+            const scale = this._map.getZoomScale(e.zoom);
+            const offset = this._map._latLngToNewLayerPoint(this._map.getBounds().getNorthWest(), e.zoom, e.center);
+            L.DomUtil.setTransform(this._canvas, offset, scale);
+        },
+
+        _draw: function () {
+            const ctx = this._canvas.getContext('2d');
+            const width = this._canvas.width;
+            const height = this._canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // A. Clip to Convex Hull
+            // Convert Hull coordinates to pixel coordinates
+            const hullCoords = hull.geometry.coordinates[0]; // Ring of coordinates
+            if (hullCoords.length > 0) {
+                ctx.beginPath();
+                hullCoords.forEach((coord, index) => {
+                    // coord is [lng, lat]
+                    const latLng = new L.LatLng(coord[1], coord[0]);
+                    const point = this._map.latLngToContainerPoint(latLng);
+                    if (index === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
                     }
+                });
+                ctx.closePath();
+                ctx.clip(); // Restrict drawing to inside the hull
+            }
+
+            // B. IDW Interpolation on a Low-Res Grid
+            // We draw to a small offscreen canvas then scale it up for performance + smoothing
+            const resolution = 0.1; // 1/10th of screen size (e.g., 100x100 for 1000x1000 screen)
+            const smallW = Math.ceil(width * resolution);
+            const smallH = Math.ceil(height * resolution);
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = smallW;
+            offCanvas.height = smallH;
+            const offCtx = offCanvas.getContext('2d');
+            const imgData = offCtx.createImageData(smallW, smallH);
+            const pixels = imgData.data;
+
+            const bounds = this._map.getBounds();
+            const north = bounds.getNorth();
+            const south = bounds.getSouth();
+            const east = bounds.getEast();
+            const west = bounds.getWest();
+            const latSpan = north - south;
+            const lngSpan = east - west;
+
+            // Pre-calculate point pixel coordinates for IDW (optimization)
+            // Actually, IDW is based on distance. 
+            // Distance in pixels is better for visual smoothness in screen space.
+            // Distance in LatLng is better for geographic accuracy.
+            // Let's use pixel distance for visual consistency with the view.
+            const pixelPoints = points.map(p => {
+                const pt = this._map.latLngToContainerPoint([p.lat, p.lng]);
+                return { x: pt.x * resolution, y: pt.y * resolution, alt: p.alt }; // Scale to small canvas
+            });
+
+            // IDW Power
+            const p = 2;
+
+            for (let y = 0; y < smallH; y++) {
+                for (let x = 0; x < smallW; x++) {
+                    let numerator = 0;
+                    let denominator = 0;
+                    let minDist = Infinity;
+                    let closestAlt = 0;
+
+                    for (const point of pixelPoints) {
+                        const dx = x - point.x;
+                        const dy = y - point.y;
+                        const distSq = dx * dx + dy * dy;
+                        const dist = Math.sqrt(distSq);
+
+                        if (dist < 0.5) { // Close enough to a point
+                            closestAlt = point.alt;
+                            minDist = 0;
+                            break;
+                        }
+
+                        const weight = 1 / Math.pow(dist, p);
+                        numerator += weight * point.alt;
+                        denominator += weight;
+                    }
+
+                    let val;
+                    if (minDist === 0) {
+                        val = closestAlt;
+                    } else {
+                        val = numerator / denominator;
+                    }
+
+                    // Convert val to Color
+                    const ratio = Math.max(0, Math.min(1, (val - minAlt) / (maxAlt - minAlt)));
+                    const hue = (1 - ratio) * 240;
+
+                    // HSLA to RGBA conversion (simplified or using helper)
+                    // For speed, let's do a simple HSL to RGB conversion or use string style if we weren't manipulating pixel data directly.
+                    // Since we are manipulating pixel data, we need RGB.
+                    const [r, g, b] = hslToRgb(hue / 360, 1, 0.5);
+
+                    const index = (y * smallW + x) * 4;
+                    pixels[index] = r;
+                    pixels[index + 1] = g;
+                    pixels[index + 2] = b;
+                    pixels[index + 3] = 180; // Alpha (0-255), ~0.7 opacity
                 }
             }
 
-            layer.bindPopup(`Altitude Region: ${displayVal}`);
+            offCtx.putImageData(imgData, 0, 0);
+
+            // Draw scaled up offscreen canvas to main canvas
+            // The clipping region is already applied to 'ctx'
+            ctx.drawImage(offCanvas, 0, 0, smallW, smallH, 0, 0, width, height);
         }
     });
 
-    contourLayer.addTo(map);
+    const layer = new CanvasLayer();
+    map.addLayer(layer);
 
-    // Return layer and stats for legend
-    return { layer: contourLayer, min: minAlt, max: maxAlt };
-}
+    return {
+        layer: layer,
+        breaks: [minAlt, (minAlt + maxAlt) / 2, maxAlt],
+        palette: [] // Not used by legend anymore since we hardcoded the gradient
+    };
+};
 
-function getColor(value, min, max) {
-    const ratio = (value - min) / (max - min);
-
-    // Heatmap style: Indigo -> Blue -> Cyan -> Green -> Yellow -> Orange -> Red
-    if (ratio < 0.15) return '#4b0082'; // Indigo
-    if (ratio < 0.30) return '#0000ff'; // Blue
-    if (ratio < 0.45) return '#00ffff'; // Cyan
-    if (ratio < 0.60) return '#00ff00'; // Green
-    if (ratio < 0.75) return '#ffff00'; // Yellow
-    if (ratio < 0.90) return '#ffa500'; // Orange
-    return '#ff0000'; // Red
-}
-
-export function addLegend(map, min, max) {
+/**
+ * Add a legend to the map
+ * @param {L.Map} map 
+ * @param {Array} breaks 
+ * @returns {L.Control}
+ */
+window.addLegend = function (map, breaks) {
     const legend = L.control({ position: 'bottomright' });
 
     legend.onAdd = function (map) {
-        const div = L.DomUtil.create('div', 'info legend');
-        // Add some basic styles for the legend
-        div.style.backgroundColor = 'white';
-        div.style.padding = '10px';
-        div.style.borderRadius = '5px';
-        div.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)';
+        const div = L.DomUtil.create('div', 'info legend bg-white p-3 rounded shadow-md text-sm');
+        div.style.lineHeight = '1.5';
 
-        const grades = [0, 0.15, 0.30, 0.45, 0.60, 0.75, 0.90];
-        const labels = [];
-        const range = max - min;
+        div.innerHTML = '<strong class="block mb-2">Altitude (m)</strong>';
 
-        div.innerHTML = '<h4 style="margin:0 0 5px;font-size:14px;">Altitude (m)</h4>';
-
-        for (let i = 0; i < grades.length; i++) {
-            const val = min + (grades[i] * range);
-            const color = getColor(val, min, max);
-
-            div.innerHTML +=
-                '<i style="background:' + color + '; width: 18px; height: 18px; float: left; margin-right: 8px; opacity: 0.7;"></i> ' +
-                val.toFixed(1) + (grades[i + 1] ? '&ndash;' + (min + (grades[i + 1] * range)).toFixed(1) + '<br>' : '+');
-        }
+        div.innerHTML += `
+            <div style="
+                background: linear-gradient(to right, blue, cyan, lime, yellow, red);
+                height: 10px;
+                width: 100%;
+                border-radius: 2px;
+                margin-bottom: 5px;
+            "></div>
+            <div class="flex justify-between text-xs text-gray-600">
+                <span>${Math.round(breaks[0])}</span>
+                <span>${Math.round(breaks[2])}</span>
+            </div>
+        `;
 
         return div;
     };
 
     legend.addTo(map);
     return legend;
-}
+};
 
-window.generateContours = generateContours;
-window.addLegend = addLegend;
+// Helper: HSL to RGB
+function hslToRgb(h, s, l) {
+    let r, g, b;
+
+    if (s === 0) {
+        r = g = b = l; // achromatic
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
