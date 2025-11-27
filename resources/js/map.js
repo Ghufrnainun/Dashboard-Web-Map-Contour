@@ -47,6 +47,7 @@ window.addMarker = function (map, lat, lng, popupContent) {
 
 /**
  * Generate "Color Contours" using IDW Interpolation and Convex Hull clipping.
+ * Renders to a static image overlay to support smooth zooming.
  * 
  * @param {L.Map} map 
  * @param {Array} data - Array of objects with latitude, longitude, altitude
@@ -78,197 +79,150 @@ window.generateContours = function (map, data) {
     if (points.length < 3) return null;
     if (maxAlt === minAlt) maxAlt = minAlt + 1;
 
-    // 2. Calculate Convex Hull (Boundary)
+    // 2. Calculate Bounds & Convex Hull
     const turfPoints = turf.featureCollection(
-        points.map(p => turf.point([p.lng, p.lat])) // Turf uses [lng, lat]
+        points.map(p => turf.point([p.lng, p.lat]))
     );
     const hull = turf.convex(turfPoints);
     if (!hull) return null;
 
-    // 3. Color Function (HSL: Blue -> Red)
-    function getColor(value) {
-        const ratio = Math.max(0, Math.min(1, (value - minAlt) / (maxAlt - minAlt)));
-        const hue = (1 - ratio) * 240; // 240 (Blue) -> 0 (Red)
-        return `hsla(${hue}, 100%, 50%, 0.7)`;
+    const bbox = turf.bbox(turfPoints); // [minLng, minLat, maxLng, maxLat]
+    // Add some padding to the bounds
+    const lngSpan = bbox[2] - bbox[0];
+    const latSpan = bbox[3] - bbox[1];
+    const padding = 0.1; // 10% padding
+    const bounds = {
+        west: bbox[0] - lngSpan * padding,
+        south: bbox[1] - latSpan * padding,
+        east: bbox[2] + lngSpan * padding,
+        north: bbox[3] + latSpan * padding
+    };
+
+    // 3. Setup Canvas for IDW
+    // Use a fixed high resolution for the image
+    const maxDim = 800;
+    const aspect = (bounds.east - bounds.west) / (bounds.north - bounds.south);
+
+    let width, height;
+    if (aspect > 1) {
+        width = maxDim;
+        height = Math.round(maxDim / aspect);
+    } else {
+        height = maxDim;
+        width = Math.round(maxDim * aspect);
     }
 
-    // 4. Create Custom Canvas Layer
-    const CanvasLayer = L.Layer.extend({
-        onAdd: function (map) {
-            this._map = map;
-            this._canvas = L.DomUtil.create('canvas', 'leaflet-heatmap-layer');
-            this._canvas.style.pointerEvents = 'none';
-            this._canvas.style.zIndex = 100;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
 
-            const size = this._map.getSize();
-            this._canvas.width = size.x;
-            this._canvas.height = size.y;
+    // Helper to map LatLng to Canvas X/Y (Linear)
+    function toCanvasPoint(lat, lng) {
+        const x = (lng - bounds.west) / (bounds.east - bounds.west) * width;
+        const y = (bounds.north - lat) / (bounds.north - bounds.south) * height; // Lat goes up, Y goes down
+        return { x, y };
+    }
 
-            const animated = this._map.options.zoomAnimation && L.Browser.any3d;
-            L.DomUtil.addClass(this._canvas, 'leaflet-zoom-' + (animated ? 'animated' : 'hide'));
+    // 4. Draw IDW
+    const imgData = ctx.createImageData(width, height);
+    const pixels = imgData.data;
 
-            map.getPanes().overlayPane.appendChild(this._canvas);
-            map.on('moveend', this._reset, this);
-            map.on('resize', this._resize, this);
-
-            if (map.options.zoomAnimation && L.Browser.any3d) {
-                map.on('zoomanim', this._animateZoom, this);
-            }
-
-            this._reset();
-        },
-
-        onRemove: function (map) {
-            map.getPanes().overlayPane.removeChild(this._canvas);
-            map.off('moveend', this._reset, this);
-            map.off('resize', this._resize, this);
-            if (map.options.zoomAnimation) {
-                map.off('zoomanim', this._animateZoom, this);
-            }
-        },
-
-        _resize: function () {
-            const size = this._map.getSize();
-            this._canvas.width = size.x;
-            this._canvas.height = size.y;
-            this._reset();
-        },
-
-        _reset: function () {
-            const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-            L.DomUtil.setPosition(this._canvas, topLeft);
-            this._draw();
-        },
-
-        _animateZoom: function (e) {
-            const scale = this._map.getZoomScale(e.zoom);
-            const offset = this._map._latLngToNewLayerPoint(this._map.getBounds().getNorthWest(), e.zoom, e.center);
-            L.DomUtil.setTransform(this._canvas, offset, scale);
-        },
-
-        _draw: function () {
-            const ctx = this._canvas.getContext('2d');
-            const width = this._canvas.width;
-            const height = this._canvas.height;
-
-            ctx.clearRect(0, 0, width, height);
-
-            // A. Clip to Convex Hull
-            // Convert Hull coordinates to pixel coordinates
-            const hullCoords = hull.geometry.coordinates[0]; // Ring of coordinates
-            if (hullCoords.length > 0) {
-                ctx.beginPath();
-                hullCoords.forEach((coord, index) => {
-                    // coord is [lng, lat]
-                    const latLng = new L.LatLng(coord[1], coord[0]);
-                    const point = this._map.latLngToContainerPoint(latLng);
-                    if (index === 0) {
-                        ctx.moveTo(point.x, point.y);
-                    } else {
-                        ctx.lineTo(point.x, point.y);
-                    }
-                });
-                ctx.closePath();
-                ctx.clip(); // Restrict drawing to inside the hull
-            }
-
-            // B. IDW Interpolation on a Low-Res Grid
-            // We draw to a small offscreen canvas then scale it up for performance + smoothing
-            const resolution = 0.1; // 1/10th of screen size (e.g., 100x100 for 1000x1000 screen)
-            const smallW = Math.ceil(width * resolution);
-            const smallH = Math.ceil(height * resolution);
-
-            const offCanvas = document.createElement('canvas');
-            offCanvas.width = smallW;
-            offCanvas.height = smallH;
-            const offCtx = offCanvas.getContext('2d');
-            const imgData = offCtx.createImageData(smallW, smallH);
-            const pixels = imgData.data;
-
-            const bounds = this._map.getBounds();
-            const north = bounds.getNorth();
-            const south = bounds.getSouth();
-            const east = bounds.getEast();
-            const west = bounds.getWest();
-            const latSpan = north - south;
-            const lngSpan = east - west;
-
-            // Pre-calculate point pixel coordinates for IDW (optimization)
-            // Actually, IDW is based on distance. 
-            // Distance in pixels is better for visual smoothness in screen space.
-            // Distance in LatLng is better for geographic accuracy.
-            // Let's use pixel distance for visual consistency with the view.
-            const pixelPoints = points.map(p => {
-                const pt = this._map.latLngToContainerPoint([p.lat, p.lng]);
-                return { x: pt.x * resolution, y: pt.y * resolution, alt: p.alt }; // Scale to small canvas
-            });
-
-            // IDW Power
-            const p = 2;
-
-            for (let y = 0; y < smallH; y++) {
-                for (let x = 0; x < smallW; x++) {
-                    let numerator = 0;
-                    let denominator = 0;
-                    let minDist = Infinity;
-                    let closestAlt = 0;
-
-                    for (const point of pixelPoints) {
-                        const dx = x - point.x;
-                        const dy = y - point.y;
-                        const distSq = dx * dx + dy * dy;
-                        const dist = Math.sqrt(distSq);
-
-                        if (dist < 0.5) { // Close enough to a point
-                            closestAlt = point.alt;
-                            minDist = 0;
-                            break;
-                        }
-
-                        const weight = 1 / Math.pow(dist, p);
-                        numerator += weight * point.alt;
-                        denominator += weight;
-                    }
-
-                    let val;
-                    if (minDist === 0) {
-                        val = closestAlt;
-                    } else {
-                        val = numerator / denominator;
-                    }
-
-                    // Convert val to Color
-                    const ratio = Math.max(0, Math.min(1, (val - minAlt) / (maxAlt - minAlt)));
-                    const hue = (1 - ratio) * 240;
-
-                    // HSLA to RGBA conversion (simplified or using helper)
-                    // For speed, let's do a simple HSL to RGB conversion or use string style if we weren't manipulating pixel data directly.
-                    // Since we are manipulating pixel data, we need RGB.
-                    const [r, g, b] = hslToRgb(hue / 360, 1, 0.5);
-
-                    const index = (y * smallW + x) * 4;
-                    pixels[index] = r;
-                    pixels[index + 1] = g;
-                    pixels[index + 2] = b;
-                    pixels[index + 3] = 180; // Alpha (0-255), ~0.7 opacity
-                }
-            }
-
-            offCtx.putImageData(imgData, 0, 0);
-
-            // Draw scaled up offscreen canvas to main canvas
-            // The clipping region is already applied to 'ctx'
-            ctx.drawImage(offCanvas, 0, 0, smallW, smallH, 0, 0, width, height);
-        }
+    // Pre-calculate point canvas coordinates
+    const canvasPoints = points.map(p => {
+        const pt = toCanvasPoint(p.lat, p.lng);
+        return { ...pt, alt: p.alt };
     });
 
-    const layer = new CanvasLayer();
-    map.addLayer(layer);
+    const p = 2; // Power parameter
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Convert pixel back to approximate Lat/Lng for distance calc?
+            // Or just use pixel distance?
+            // Using pixel distance is faster and visually consistent with the canvas projection.
+            // Since the canvas is linear in Lat/Lng, pixel distance is Euclidean in Lat/Lng space.
+
+            let numerator = 0;
+            let denominator = 0;
+            let minDist = Infinity;
+            let closestAlt = 0;
+
+            for (const point of canvasPoints) {
+                const dx = x - point.x;
+                const dy = y - point.y;
+                const distSq = dx * dx + dy * dy;
+
+                // Optimization: if distSq is very small, just take the value
+                if (distSq < 1) {
+                    closestAlt = point.alt;
+                    minDist = 0;
+                    break;
+                }
+
+                const weight = 1 / Math.pow(distSq, p / 2); // dist^p = (sqrt(distSq))^p = distSq^(p/2)
+                numerator += weight * point.alt;
+                denominator += weight;
+            }
+
+            let val;
+            if (minDist === 0) {
+                val = closestAlt;
+            } else {
+                val = numerator / denominator;
+            }
+
+            // Color Mapping
+            const ratio = Math.max(0, Math.min(1, (val - minAlt) / (maxAlt - minAlt)));
+            const hue = (1 - ratio) * 240;
+            const [r, g, b] = hslToRgb(hue / 360, 1, 0.5);
+
+            const index = (y * width + x) * 4;
+            pixels[index] = r;
+            pixels[index + 1] = g;
+            pixels[index + 2] = b;
+            pixels[index + 3] = 255; // Full opacity, we will clip later
+        }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    // 5. Clip with Convex Hull
+    // We need to use 'destination-in' composite operation or just draw the hull as a mask.
+    // Let's use a second canvas to draw the mask, then composite.
+    // Actually, simpler: Set composite operation to 'destination-in' and draw the hull.
+    // Only the overlapping parts (hull) will remain.
+
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath();
+    const hullCoords = hull.geometry.coordinates[0];
+    hullCoords.forEach((coord, index) => {
+        // coord is [lng, lat]
+        const pt = toCanvasPoint(coord[1], coord[0]);
+        if (index === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    // Reset composite op
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 6. Create Image Overlay
+    const imageUrl = canvas.toDataURL();
+    const imageBounds = [[bounds.south, bounds.west], [bounds.north, bounds.east]];
+
+    const layer = L.imageOverlay(imageUrl, imageBounds, {
+        opacity: 0.7,
+        interactive: false
+    });
+
+    layer.addTo(map);
 
     return {
         layer: layer,
         breaks: [minAlt, (minAlt + maxAlt) / 2, maxAlt],
-        palette: [] // Not used by legend anymore since we hardcoded the gradient
+        palette: []
     };
 };
 

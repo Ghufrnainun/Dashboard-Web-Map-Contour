@@ -26,6 +26,10 @@
                 <input type="checkbox" id="toggle-contours" class="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out" checked>
                 <span class="ml-2 text-sm text-gray-700">Tampilkan Kontur Warna</span>
             </label>
+            <label class="inline-flex items-center cursor-pointer ml-6">
+                <input type="checkbox" id="toggle-markers" class="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out" checked>
+                <span class="ml-2 text-sm text-gray-700">Tampilkan Marker</span>
+            </label>
         </div>
         <div class="p-0">
             <div id="map-container" class="h-[500px] bg-gray-100 z-0"></div>
@@ -93,6 +97,15 @@
                     map.removeControl(window.currentLegend);
                     window.currentLegend = null;
                 }
+            }
+        });
+
+        // Toggle Markers Listener
+        document.getElementById('toggle-markers').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                markers.forEach(marker => marker.addTo(map));
+            } else {
+                markers.forEach(marker => marker.remove());
             }
         });
 
@@ -168,6 +181,12 @@
                 `;
                 const marker = window.addMarker(map, lat, lng, popupContent);
                 markers.push(marker);
+                
+                // Hide if checkbox is unchecked
+                if (!document.getElementById('toggle-markers').checked) {
+                    marker.remove();
+                }
+                
                 bounds.extend([lat, lng]);
             }
         });
