@@ -1,116 +1,140 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 print:hidden">
     <div>
-        <h2 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ $project->name }}</h2>
-        <div class="flex items-center gap-3 mt-2 text-sm">
-            <div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                <i class="bi bi-person-circle"></i>
+        <div class="flex items-center gap-3 mb-1">
+            <a href="{{ route('home') }}" class="text-gray-400 hover:text-blue-600 transition-colors">
+                <i class="bi bi-arrow-left text-xl"></i>
+            </a>
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ $project->name }}</h2>
+        </div>
+        <div class="flex items-center gap-4 ml-8 text-sm">
+            <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <i class="bi bi-person-circle text-blue-500"></i>
                 <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $project->surveyor_name }}</span>
             </div>
             <span class="text-gray-300 dark:text-gray-600">|</span>
-            <div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-xs font-bold dark:bg-gray-800 dark:text-gray-300">ID: #{{ $project->id }}</span>
+            <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <i class="bi bi-calendar-event"></i>
+                <span>{{ $project->created_at->format('d M Y, H:i') }}</span>
             </div>
+            <span class="text-gray-300 dark:text-gray-600">|</span>
+            <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-400">ID: #{{ $project->id }}</span>
         </div>
     </div>
-    <a href="{{ route('home') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
-        <i class="bi bi-arrow-left mr-2"></i> Kembali
-    </a>
+    <div class="flex gap-3">
+        <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-all dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            <i class="bi bi-printer mr-2"></i> Print
+        </button>
+        <button onclick="loadData()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 transition-all">
+            <i class="bi bi-arrow-clockwise mr-2"></i> Refresh Data
+        </button>
+    </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Map Section (Left, 2 Columns) -->
-    <div class="lg:col-span-2 flex flex-col gap-6">
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300 h-full">
-            <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50 dark:bg-gray-800 dark:border-gray-700">
-                <h5 class="text-lg font-bold text-gray-800 flex items-center gap-2 dark:text-gray-100">
-                    <div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg dark:bg-blue-900/30 dark:text-blue-400">
+{{-- Print Header --}}
+<div class="hidden print:block mb-8">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ $project->name }}</h1>
+    <div class="flex gap-4 text-sm text-gray-600">
+        <span>Surveyor: {{ $project->surveyor_name }}</span>
+        <span>|</span>
+        <span>Date: {{ $project->created_at->format('d M Y, H:i') }}</span>
+        <span>|</span>
+        <span>ID: #{{ $project->id }}</span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 print:block">
+    <!-- Map Section (Left, 8 Columns) -->
+    <div class="lg:col-span-8 flex flex-col gap-6 print:mb-6 print:break-inside-avoid print:block print:w-full">
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300 h-full flex flex-col print:h-auto print:block print:border print:border-gray-300 print:shadow-none">
+            <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 dark:border-gray-700 print:hidden">
+                <h5 class="text-lg font-bold text-gray-900 flex items-center gap-3 dark:text-gray-100">
+                    <div class="p-2 bg-gray-100 text-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-300">
                         <i class="bi bi-map-fill"></i>
                     </div>
-                    Peta Kontur
+                    Visualisasi Kontur
                 </h5>
-                <div class="flex items-center gap-3">
-                    <button class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600" onclick="loadData()">
-                        <i class="bi bi-arrow-clockwise mr-1.5"></i> Refresh
-                    </button>
+                
+                <div class="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 dark:bg-gray-700/50 dark:border-gray-600">
+                    <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-white has-[:checked]:text-blue-600 has-[:checked]:shadow-sm dark:has-[:checked]:bg-gray-600 dark:has-[:checked]:text-white">
+                        <input type="checkbox" id="toggle-contours" class="sr-only" checked>
+                        <span class="text-sm font-semibold flex items-center gap-2">
+                            <i class="bi bi-layers"></i> Kontur
+                        </span>
+                    </label>
+                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600"></div>
+                    <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-white has-[:checked]:text-blue-600 has-[:checked]:shadow-sm dark:has-[:checked]:bg-gray-600 dark:has-[:checked]:text-white">
+                        <input type="checkbox" id="toggle-markers" class="sr-only" checked>
+                        <span class="text-sm font-semibold flex items-center gap-2">
+                            <i class="bi bi-geo-alt"></i> Marker
+                        </span>
+                    </label>
                 </div>
             </div>
             
-            <div class="px-6 py-3 bg-white border-b border-gray-100 flex flex-wrap items-center gap-6 dark:bg-gray-800 dark:border-gray-700">
-                <label class="inline-flex items-center cursor-pointer group">
-                    <div class="relative">
-                        <input type="checkbox" id="toggle-contours" class="peer sr-only" checked>
-                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    </div>
-                    <span class="ml-2 text-sm font-semibold text-gray-600 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white transition-colors">Kontur</span>
-                </label>
-                
-                <label class="inline-flex items-center cursor-pointer group">
-                    <div class="relative">
-                        <input type="checkbox" id="toggle-markers" class="peer sr-only" checked>
-                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    </div>
-                    <span class="ml-2 text-sm font-semibold text-gray-600 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white transition-colors">Marker</span>
-                </label>
-            </div>
-            
-            <div class="p-0 relative h-[600px]">
-                <div id="map-container" class="absolute inset-0 z-0"></div>
+            <div class="relative flex-1 min-h-[600px] w-full bg-gray-100 dark:bg-gray-900 print:min-h-0 print:h-[500px] print:block print:relative">
+                <div id="map-container" class="absolute inset-0 z-0 print:relative print:inset-auto print:h-full print:w-full"></div>
             </div>
         </div>
     </div>
 
     <!-- Right Sidebar (Stats & Table) -->
-    <div class="lg:col-span-1 flex flex-col gap-6">
+    <div class="lg:col-span-4 flex flex-col gap-6 print:block">
         
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-2 gap-4">
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center gap-2 mb-2 text-red-500 bg-red-50 w-fit px-2 py-1 rounded-lg dark:bg-red-900/20 dark:text-red-400">
+        <div class="grid grid-cols-2 gap-4 print:mb-6">
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700 relative overflow-hidden group print:border print:border-gray-200 print:shadow-none">
+                <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity print:hidden">
+                    <i class="bi bi-arrow-up-circle-fill text-5xl text-red-500"></i>
+                </div>
+                <div class="flex items-center gap-2 mb-3 text-red-500 bg-red-50 w-fit px-3 py-1 rounded-full dark:bg-red-900/20 dark:text-red-400 print:bg-transparent print:p-0">
                     <i class="bi bi-arrow-up-circle-fill"></i>
                     <span class="text-xs font-bold uppercase tracking-wider">Tertinggi</span>
                 </div>
-                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="stat-max-alt">-</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Meter Mdpl</div>
+                <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1" id="stat-max-alt">-</div>
+                <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Meter Mdpl</div>
             </div>
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center gap-2 mb-2 text-teal-500 bg-teal-50 w-fit px-2 py-1 rounded-lg dark:bg-teal-900/20 dark:text-teal-400">
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700 relative overflow-hidden group print:border print:border-gray-200 print:shadow-none">
+                <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity print:hidden">
+                    <i class="bi bi-arrow-down-circle-fill text-5xl text-teal-500"></i>
+                </div>
+                <div class="flex items-center gap-2 mb-3 text-teal-500 bg-teal-50 w-fit px-3 py-1 rounded-full dark:bg-teal-900/20 dark:text-teal-400 print:bg-transparent print:p-0">
                     <i class="bi bi-arrow-down-circle-fill"></i>
                     <span class="text-xs font-bold uppercase tracking-wider">Terendah</span>
                 </div>
-                <div class="text-2xl font-bold text-gray-900 dark:text-white" id="stat-min-alt">-</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Meter Mdpl</div>
+                <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1" id="stat-min-alt">-</div>
+                <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Meter Mdpl</div>
             </div>
         </div>
 
         <!-- Data Table Section -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300">
-            <div class="px-5 py-4 border-b border-gray-100 bg-gray-50/50 dark:bg-gray-800 dark:border-gray-700">
-                <h5 class="text-lg font-bold text-gray-800 flex items-center gap-2 dark:text-gray-100">
-                    <div class="p-1.5 bg-green-100 text-green-600 rounded-lg dark:bg-green-900/30 dark:text-green-400">
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300 print:shadow-none print:border-none">
+            <div class="px-6 py-5 border-b border-gray-100 bg-white dark:bg-gray-800 dark:border-gray-700 print:px-0 print:py-2">
+                <h5 class="text-lg font-bold text-gray-900 flex items-center gap-3 dark:text-gray-100">
+                    <div class="p-2 bg-gray-100 text-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-300 print:hidden">
                         <i class="bi bi-table"></i>
                     </div>
-                    Data Titik
+                    Data Pengukuran
                 </h5>
             </div>
             
             <div class="overflow-x-auto flex-1">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="data-table">
-                    <thead class="bg-gray-50 dark:bg-gray-900/50">
+                <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700" id="data-table">
+                    <thead class="bg-gray-50/50 dark:bg-gray-900/30 print:bg-gray-100">
                         <tr>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400">Alt (m)</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400">Lat, Long</th>
-                            <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400">Waktu</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400 print:px-2 print:py-2">Alt (m)</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400 print:px-2 print:py-2">Koordinat</th>
+                            <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400 print:px-2 print:py-2">Waktu</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                    <tbody class="bg-white divide-y divide-gray-100 dark:bg-gray-800 dark:divide-gray-700">
                         <tr>
-                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                                <div class="flex flex-col items-center justify-center">
-                                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-                                    Memuat...
+                            <td colspan="3" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center gap-3">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <span class="font-medium">Mengambil data...</span>
                                 </div>
                             </td>
                         </tr>
@@ -119,12 +143,12 @@
             </div>
             
             {{-- Pagination Controls --}}
-            <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800 dark:border-gray-700">
-                <button id="btn-prev" class="p-2 border border-gray-200 rounded-lg text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30 dark:bg-gray-800 dark:border-gray-700 print:hidden">
+                <button id="btn-prev" class="p-2.5 border border-gray-200 rounded-xl text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span id="page-info" class="text-xs font-semibold text-gray-600 dark:text-gray-400">Page 1</span>
-                <button id="btn-next" class="p-2 border border-gray-200 rounded-lg text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                <span id="page-info" class="text-sm font-bold text-gray-700 dark:text-gray-300 font-mono">Page 1</span>
+                <button id="btn-next" class="p-2.5 border border-gray-200 rounded-xl text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -184,6 +208,24 @@
         });
 
         loadData();
+
+        // Handle Print Events to resize map
+        window.addEventListener('beforeprint', () => {
+            if (map) {
+                map.invalidateSize();
+                // Optional: Fit bounds again to ensure markers are visible
+                if (markers.length > 0) {
+                    const group = new L.featureGroup(markers);
+                    map.fitBounds(group.getBounds());
+                }
+            }
+        });
+
+        window.addEventListener('afterprint', () => {
+            if (map) {
+                map.invalidateSize();
+            }
+        });
     });
 
     function loadData() {

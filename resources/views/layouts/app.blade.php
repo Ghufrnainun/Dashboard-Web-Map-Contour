@@ -25,7 +25,7 @@
   <body 
     class="bg-gray-50 text-gray-800 antialiased transition-colors duration-300 dark:bg-gray-900 dark:text-gray-100"
     x-data="{ 
-        darkMode: localStorage.getItem('darkMode') === 'true',
+        darkMode: localStorage.getItem('darkMode') === 'true' || (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches),
         toggleTheme() {
             this.darkMode = !this.darkMode;
             localStorage.setItem('darkMode', this.darkMode);
