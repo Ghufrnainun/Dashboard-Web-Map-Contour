@@ -137,3 +137,28 @@
         opacity: 1;
     }
 }
+
+/* Leaflet Layer Control Styling */
+.leaflet-control-layers {
+    background: var(--card) !important;
+    color: var(--card-foreground) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+    padding: 0.5rem !important;
+    font-family: inherit !important;
+}
+
+.leaflet-control-layers-expanded {
+    padding: 1rem !important;
+}
+
+.leaflet-control-layers-toggle {
+    background-color: var(--card) !important;
+    border-radius: var(--radius) !important;
+}
+
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+    border: 1px solid var(--border) !important;
+}

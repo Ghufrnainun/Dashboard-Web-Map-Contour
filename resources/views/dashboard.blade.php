@@ -312,15 +312,17 @@
             
             if (!isNaN(lat) && !isNaN(lng)) {
                 const popupContent = `
-                    <div class="font-sans text-sm">
-                        <div class="font-bold mb-1 text-gray-800">Data Point</div>
-                        <div class="grid grid-cols-2 gap-x-2 gap-y-1">
-                            <span class="text-gray-500">Time:</span>
-                            <span class="font-mono text-gray-700">${new Date(item.created_at).toLocaleString()}</span>
-                            <span class="text-gray-500">Alt:</span>
-                            <span class="font-mono text-gray-700">${item.altitude} m</span>
-                            <span class="text-gray-500">Pressure:</span>
-                            <span class="font-mono text-gray-700">${item.pressure || '-'} hPa</span>
+                    <div class="font-sans text-sm min-w-[200px]">
+                        <div class="font-bold mb-2 text-foreground border-b border-border pb-1">Data Point</div>
+                        <div class="grid grid-cols-[80px_1fr] gap-y-1">
+                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Time</span>
+                            <span class="font-mono text-foreground text-xs">${new Date(item.created_at).toLocaleString()}</span>
+                            
+                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Alt</span>
+                            <span class="font-mono text-foreground text-xs font-bold">${item.altitude} m</span>
+                            
+                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Pressure</span>
+                            <span class="font-mono text-foreground text-xs">${item.pressure || '-'} hPa</span>
                         </div>
                     </div>
                 `;

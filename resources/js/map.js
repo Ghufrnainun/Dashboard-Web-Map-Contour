@@ -21,10 +21,75 @@ L.Icon.Default.mergeOptions({
 window.initMap = function (id) {
     const map = L.map(id).setView([-2.5489, 118.0149], 5);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // 1. Define Base Layers
+    const osmLayer = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+            attribution: "© OpenStreetMap",
+        }
+    );
+
+    const googleSatLayer = L.tileLayer(
+        "http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}",
+        {
+            maxZoom: 20,
+            subdomains: ["mt0", "mt1", "mt2", "mt3"],
+            attribution: "&copy; Google Maps",
+        }
+    );
+
+    // CartoDB Tiles Configuration
+    const cartoTiles = {
+        light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    };
+    const cartoAttribution =
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+    // Create CartoDB layer (initially with light or dark based on current theme)
+    const isDark = document.documentElement.classList.contains("dark");
+    let cartoUrl = isDark ? cartoTiles.dark : cartoTiles.light;
+
+    const cartoLayer = L.tileLayer(cartoUrl, {
         maxZoom: 19,
-        attribution: "© OpenStreetMap",
-    }).addTo(map);
+        attribution: cartoAttribution,
+    });
+
+    // 2. Add Default Layer (OSM)
+    osmLayer.addTo(map);
+
+    // 3. Add Layer Control
+    const baseMaps = {
+        "Standard (OSM)": osmLayer,
+        "Professional (CartoDB)": cartoLayer,
+        "Satellite (Google)": googleSatLayer,
+    };
+
+    L.control.layers(baseMaps).addTo(map);
+
+    // 4. Dynamic Theme Logic for CartoDB
+    function updateCartoLayer() {
+        const isDark = document.documentElement.classList.contains("dark");
+        const newUrl = isDark ? cartoTiles.dark : cartoTiles.light;
+        cartoLayer.setUrl(newUrl);
+    }
+
+    // Watch for theme changes
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (
+                mutation.type === "attributes" &&
+                mutation.attributeName === "class"
+            ) {
+                updateCartoLayer();
+            }
+        });
+    });
+
+    observer.observe(document.documentElement, {
+        attributes: true,
+    });
 
     return map;
 };
