@@ -48,7 +48,8 @@
             
             <div class="flex items-center gap-4">
                 <a class="text-muted-foreground hover:text-primary font-medium transition-colors {{ request()->routeIs('home') ? '!text-primary' : '' }}" href="{{ route('home') }}">
-                    Home
+                    <span class="hidden sm:inline">Home</span>
+                    <i class="bi bi-house-door sm:hidden text-xl"></i>
                 </a>
                 
                 <!-- Dark Mode Toggle -->
