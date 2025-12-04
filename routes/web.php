@@ -28,3 +28,6 @@ Route::get('/project/{id}', [ContourController::class, 'show'])->name('projects.
 // URL: http://localhost:8000/project/1/data
 // Ini yang bikin peta bisa muncul titik-titiknya tanpa reload halaman
 Route::get('/project/{id}/data', [ContourController::class, 'getMeasurements'])->name('projects.data');
+
+// 5. Hapus Data Pengukuran
+Route::delete('/measurements/{id}', [ContourController::class, 'destroy'])->name('measurements.destroy');

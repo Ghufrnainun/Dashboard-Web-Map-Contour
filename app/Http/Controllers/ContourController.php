@@ -98,4 +98,15 @@ class ContourController extends Controller
             'data_id' => $data->id
         ], 201);
     }
+
+    /**
+     * 6. Hapus Data Pengukuran (Dashboard)
+     */
+    public function destroy($id)
+    {
+        $measurement = Measurement::findOrFail($id);
+        $measurement->delete();
+
+        return response()->json(['status' => 'success']);
+    }
 }

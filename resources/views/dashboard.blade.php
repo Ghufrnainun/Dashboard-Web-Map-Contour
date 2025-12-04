@@ -127,11 +127,12 @@
                             <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider print:px-2 print:py-2">Alt (m)</th>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider print:px-2 print:py-2">Koordinat</th>
                             <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider print:px-2 print:py-2">Waktu</th>
+                            <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider print:hidden">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="bg-card divide-y divide-border">
                         <tr>
-                            <td colspan="3" class="px-6 py-12 text-center text-sm text-muted-foreground">
+                            <td colspan="4" class="px-6 py-12 text-center text-sm text-muted-foreground">
                                 <div class="flex flex-col items-center justify-center gap-3">
                                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                                     <span class="font-medium">Mengambil data...</span>
@@ -155,6 +156,37 @@
         </div>
     </div>
 </div>
+
+{{-- Delete Confirmation Modal --}}
+<div id="delete-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity opacity-0" id="delete-modal-backdrop"></div>
+
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <!-- Modal Panel -->
+            <div class="relative transform overflow-hidden rounded-3xl bg-card text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" id="delete-modal-panel">
+                <div class="bg-card px-4 pb-4 pt-5 sm:p-6 sm:pb-4 border border-border">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10 dark:bg-red-900/20">
+                            <i class="bi bi-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
+                        </div>
+                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                            <h3 class="text-lg font-semibold leading-6 text-foreground" id="modal-title">Hapus Data Pengukuran?</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan dan data akan hilang permanen.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-muted/50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
+                    <button type="button" id="confirm-delete-btn" class="inline-flex w-full justify-center rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto transition-colors">Hapus</button>
+                    <button type="button" onclick="closeDeleteModal()" class="mt-3 inline-flex w-full justify-center rounded-xl bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-secondary sm:mt-0 sm:w-auto transition-colors">Batal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -170,6 +202,7 @@
     let currentPage = 1;
     const rowsPerPage = 10;
     let sortedData = [];
+    let deleteId = null; // Store ID to delete
 
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -348,7 +381,7 @@
         tbody.innerHTML = '';
 
         if (sortedData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-8 text-center text-sm text-muted-foreground">Belum ada data pengukuran.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-sm text-muted-foreground">Belum ada data pengukuran.</td></tr>';
             updatePaginationControls();
             return;
         }
@@ -373,6 +406,11 @@
                     <td class="px-4 py-3 whitespace-nowrap text-xs text-right text-muted-foreground">
                         <div class="font-medium text-foreground">${timeStr}</div>
                         <div class="text-[10px]">${dateStr}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-center print:hidden">
+                        <button onclick="openDeleteModal(${item.id})" class="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors" title="Hapus Data">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </td>
                 </tr>
             `;
@@ -411,6 +449,83 @@
                 }
             };
         }
+    }
+
+    // Modal Functions
+    function openDeleteModal(id) {
+        deleteId = id;
+        const modal = document.getElementById('delete-modal');
+        const backdrop = document.getElementById('delete-modal-backdrop');
+        const panel = document.getElementById('delete-modal-panel');
+        
+        modal.classList.remove('hidden');
+        
+        // Animate in
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            panel.classList.remove('opacity-0', 'translate-y-4', 'sm:translate-y-0', 'sm:scale-95');
+            panel.classList.add('opacity-100', 'translate-y-0', 'sm:scale-100');
+        }, 10);
+    }
+
+    function closeDeleteModal() {
+        deleteId = null;
+        const modal = document.getElementById('delete-modal');
+        const backdrop = document.getElementById('delete-modal-backdrop');
+        const panel = document.getElementById('delete-modal-panel');
+        
+        // Animate out
+        backdrop.classList.add('opacity-0');
+        panel.classList.remove('opacity-100', 'translate-y-0', 'sm:scale-100');
+        panel.classList.add('opacity-0', 'translate-y-4', 'sm:translate-y-0', 'sm:scale-95');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    // Bind confirm button
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (deleteId) {
+            deleteMeasurement(deleteId);
+            closeDeleteModal();
+        }
+    });
+
+    function deleteMeasurement(id) {
+        // if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return; // Replaced by modal
+
+        fetch(`/measurements/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove from local data arrays
+                currentData = currentData.filter(item => item.id !== id);
+                sortedData = sortedData.filter(item => item.id !== id);
+                
+                // Refresh UI
+                updateStats(currentData);
+                updateTable();
+                updateMap(currentData);
+                
+                // Update contours if active
+                if (document.getElementById('toggle-contours').checked) {
+                    updateContours(currentData);
+                }
+            } else {
+                alert('Gagal menghapus data');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat menghapus data');
+        });
     }
 </script>
 @endpush
