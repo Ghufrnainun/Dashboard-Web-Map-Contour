@@ -1,33 +1,33 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 print:hidden">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 print:hidden animate-fade-in-up">
     <div>
         <div class="flex items-center gap-3 mb-1">
-            <a href="{{ route('home') }}" class="text-gray-400 hover:text-blue-600 transition-colors">
+            <a href="{{ route('home') }}" class="text-muted-foreground hover:text-primary transition-colors">
                 <i class="bi bi-arrow-left text-xl"></i>
             </a>
-            <h2 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{{ $project->name }}</h2>
+            <h2 class="text-3xl font-bold text-foreground tracking-tight">{{ $project->name }}</h2>
         </div>
         <div class="flex items-center gap-4 ml-8 text-sm">
-            <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                <i class="bi bi-person-circle text-blue-500"></i>
-                <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $project->surveyor_name }}</span>
+            <div class="flex items-center gap-2 text-muted-foreground">
+                <i class="bi bi-person-circle text-primary"></i>
+                <span class="font-semibold text-foreground">{{ $project->surveyor_name }}</span>
             </div>
-            <span class="text-gray-300 dark:text-gray-600">|</span>
-            <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+            <span class="text-muted-foreground/50">|</span>
+            <div class="flex items-center gap-2 text-muted-foreground">
                 <i class="bi bi-calendar-event"></i>
                 <span>{{ $project->created_at->format('d M Y, H:i') }}</span>
             </div>
-            <span class="text-gray-300 dark:text-gray-600">|</span>
-            <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-400">ID: #{{ $project->id }}</span>
+            <span class="text-muted-foreground/50">|</span>
+            <span class="font-mono bg-secondary px-2 py-0.5 rounded text-xs font-bold text-muted-foreground">ID: #{{ $project->id }}</span>
         </div>
     </div>
     <div class="flex gap-3">
-        <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-all dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+        <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-card border border-border rounded-xl font-semibold text-foreground shadow-sm hover:bg-secondary transition-all">
             <i class="bi bi-printer mr-2"></i> Print
         </button>
-        <button onclick="loadData()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 transition-all">
+        <button onclick="loadData()" class="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-xl font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 transition-all">
             <i class="bi bi-arrow-clockwise mr-2"></i> Refresh Data
         </button>
     </div>
@@ -47,25 +47,25 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 print:block">
     <!-- Map Section (Left, 8 Columns) -->
-    <div class="lg:col-span-8 flex flex-col gap-6 print:mb-6 print:break-inside-avoid print:block print:w-full">
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300 h-full flex flex-col print:h-auto print:block print:border print:border-gray-300 print:shadow-none">
-            <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 dark:border-gray-700 print:hidden">
-                <h5 class="text-lg font-bold text-gray-900 flex items-center gap-3 dark:text-gray-100">
-                    <div class="p-2 bg-gray-100 text-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-300">
+    <div class="lg:col-span-8 flex flex-col gap-6 print:mb-6 print:break-inside-avoid print:block print:w-full animate-fade-in-up delay-100">
+        <div class="bg-card rounded-3xl shadow-sm border border-border overflow-hidden transition-colors duration-300 h-full flex flex-col print:h-auto print:block print:border print:border-gray-300 print:shadow-none">
+            <div class="px-6 py-4 border-b border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-card print:hidden">
+                <h5 class="text-lg font-bold text-card-foreground flex items-center gap-3">
+                    <div class="p-2 bg-secondary text-secondary-foreground rounded-lg">
                         <i class="bi bi-map-fill"></i>
                     </div>
                     Visualisasi Kontur
                 </h5>
                 
-                <div class="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 dark:bg-gray-700/50 dark:border-gray-600">
-                    <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-white has-[:checked]:text-blue-600 has-[:checked]:shadow-sm dark:has-[:checked]:bg-gray-600 dark:has-[:checked]:text-white">
+                <div class="flex items-center gap-2 bg-muted p-1 rounded-xl border border-border">
+                    <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-card has-[:checked]:text-primary has-[:checked]:shadow-sm">
                         <input type="checkbox" id="toggle-contours" class="sr-only" checked>
                         <span class="text-sm font-semibold flex items-center gap-2">
                             <i class="bi bi-layers"></i> Kontur
                         </span>
                     </label>
-                    <div class="w-px h-4 bg-gray-300 dark:bg-gray-600"></div>
-                    <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-white has-[:checked]:text-blue-600 has-[:checked]:shadow-sm dark:has-[:checked]:bg-gray-600 dark:has-[:checked]:text-white">
+                    <div class="w-px h-4 bg-border"></div>
+                    <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-card has-[:checked]:text-primary has-[:checked]:shadow-sm">
                         <input type="checkbox" id="toggle-markers" class="sr-only" checked>
                         <span class="text-sm font-semibold flex items-center gap-2">
                             <i class="bi bi-geo-alt"></i> Marker
@@ -74,18 +74,18 @@
                 </div>
             </div>
             
-            <div class="relative flex-1 min-h-[600px] w-full bg-gray-100 dark:bg-gray-900 print:min-h-0 print:h-[500px] print:block print:relative">
+            <div class="relative flex-1 min-h-[600px] w-full bg-muted/20 print:min-h-0 print:h-[500px] print:block print:relative">
                 <div id="map-container" class="absolute inset-0 z-0 print:relative print:inset-auto print:h-full print:w-full"></div>
             </div>
         </div>
     </div>
 
     <!-- Right Sidebar (Stats & Table) -->
-    <div class="lg:col-span-4 flex flex-col gap-6 print:block">
+    <div class="lg:col-span-4 flex flex-col gap-6 print:block animate-fade-in-up delay-200">
         
         <!-- Statistics Cards -->
         <div class="grid grid-cols-2 gap-4 print:mb-6">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700 relative overflow-hidden group print:border print:border-gray-200 print:shadow-none">
+            <div class="bg-card p-5 rounded-3xl shadow-sm border border-border relative overflow-hidden group hover:shadow-md transition-all duration-300 hover:-translate-y-1 print:border print:border-gray-200 print:shadow-none">
                 <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity print:hidden">
                     <i class="bi bi-arrow-up-circle-fill text-5xl text-red-500"></i>
                 </div>
@@ -93,10 +93,10 @@
                     <i class="bi bi-arrow-up-circle-fill"></i>
                     <span class="text-xs font-bold uppercase tracking-wider">Tertinggi</span>
                 </div>
-                <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1" id="stat-max-alt">-</div>
-                <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Meter Mdpl</div>
+                <div class="text-3xl font-bold text-card-foreground mb-1" id="stat-max-alt">-</div>
+                <div class="text-xs font-medium text-muted-foreground">Meter Mdpl</div>
             </div>
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700 relative overflow-hidden group print:border print:border-gray-200 print:shadow-none">
+            <div class="bg-card p-5 rounded-3xl shadow-sm border border-border relative overflow-hidden group hover:shadow-md transition-all duration-300 hover:-translate-y-1 print:border print:border-gray-200 print:shadow-none">
                 <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity print:hidden">
                     <i class="bi bi-arrow-down-circle-fill text-5xl text-teal-500"></i>
                 </div>
@@ -104,16 +104,16 @@
                     <i class="bi bi-arrow-down-circle-fill"></i>
                     <span class="text-xs font-bold uppercase tracking-wider">Terendah</span>
                 </div>
-                <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1" id="stat-min-alt">-</div>
-                <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Meter Mdpl</div>
+                <div class="text-3xl font-bold text-card-foreground mb-1" id="stat-min-alt">-</div>
+                <div class="text-xs font-medium text-muted-foreground">Meter Mdpl</div>
             </div>
         </div>
 
         <!-- Data Table Section -->
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300 print:shadow-none print:border-none">
-            <div class="px-6 py-5 border-b border-gray-100 bg-white dark:bg-gray-800 dark:border-gray-700 print:px-0 print:py-2">
-                <h5 class="text-lg font-bold text-gray-900 flex items-center gap-3 dark:text-gray-100">
-                    <div class="p-2 bg-gray-100 text-gray-700 rounded-lg dark:bg-gray-700 dark:text-gray-300 print:hidden">
+        <div class="bg-card rounded-3xl shadow-sm border border-border overflow-hidden flex-1 flex flex-col transition-colors duration-300 print:shadow-none print:border-none">
+            <div class="px-6 py-5 border-b border-border bg-card print:px-0 print:py-2">
+                <h5 class="text-lg font-bold text-card-foreground flex items-center gap-3">
+                    <div class="p-2 bg-secondary text-secondary-foreground rounded-lg print:hidden">
                         <i class="bi bi-table"></i>
                     </div>
                     Data Pengukuran
@@ -121,19 +121,19 @@
             </div>
             
             <div class="overflow-x-auto flex-1">
-                <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700" id="data-table">
-                    <thead class="bg-gray-50/50 dark:bg-gray-900/30 print:bg-gray-100">
+                <table class="min-w-full divide-y divide-border" id="data-table">
+                    <thead class="bg-muted/50 print:bg-gray-100">
                         <tr>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400 print:px-2 print:py-2">Alt (m)</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400 print:px-2 print:py-2">Koordinat</th>
-                            <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400 print:px-2 print:py-2">Waktu</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider print:px-2 print:py-2">Alt (m)</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider print:px-2 print:py-2">Koordinat</th>
+                            <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider print:px-2 print:py-2">Waktu</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-100 dark:bg-gray-800 dark:divide-gray-700">
+                    <tbody class="bg-card divide-y divide-border">
                         <tr>
-                            <td colspan="3" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <td colspan="3" class="px-6 py-12 text-center text-sm text-muted-foreground">
                                 <div class="flex flex-col items-center justify-center gap-3">
-                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                                     <span class="font-medium">Mengambil data...</span>
                                 </div>
                             </td>
@@ -143,12 +143,12 @@
             </div>
             
             {{-- Pagination Controls --}}
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/30 dark:bg-gray-800 dark:border-gray-700 print:hidden">
-                <button id="btn-prev" class="p-2.5 border border-gray-200 rounded-xl text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+            <div class="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/30 print:hidden">
+                <button id="btn-prev" class="p-2.5 border border-border rounded-xl text-muted-foreground bg-card hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span id="page-info" class="text-sm font-bold text-gray-700 dark:text-gray-300 font-mono">Page 1</span>
-                <button id="btn-next" class="p-2.5 border border-gray-200 rounded-xl text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600">
+                <span id="page-info" class="text-sm font-bold text-foreground font-mono">Page 1</span>
+                <button id="btn-next" class="p-2.5 border border-border rounded-xl text-muted-foreground bg-card hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -346,7 +346,7 @@
         tbody.innerHTML = '';
 
         if (sortedData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Belum ada data pengukuran.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-8 text-center text-sm text-muted-foreground">Belum ada data pengukuran.</td></tr>';
             updatePaginationControls();
             return;
         }
@@ -362,14 +362,14 @@
             const dateStr = date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 
             const row = `
-                <tr class="hover:bg-gray-50 transition-colors dark:hover:bg-gray-700/50">
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-200">${item.altitude}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono dark:text-gray-400">
+                <tr class="hover:bg-muted/50 transition-colors">
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-foreground">${item.altitude}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground font-mono">
                         <div>${parseFloat(item.latitude).toFixed(5)}</div>
                         <div>${parseFloat(item.longitude).toFixed(5)}</div>
                     </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-xs text-right text-gray-500 dark:text-gray-400">
-                        <div class="font-medium text-gray-700 dark:text-gray-300">${timeStr}</div>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-right text-muted-foreground">
+                        <div class="font-medium text-foreground">${timeStr}</div>
                         <div class="text-[10px]">${dateStr}</div>
                     </td>
                 </tr>

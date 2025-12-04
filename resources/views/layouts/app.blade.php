@@ -23,7 +23,7 @@
     @stack('styles')
   </head>
   <body 
-    class="bg-gray-50 text-gray-800 antialiased transition-colors duration-300 dark:bg-gray-900 dark:text-gray-100"
+    class="bg-background text-foreground antialiased transition-colors duration-300"
     x-data="{ 
         darkMode: localStorage.getItem('darkMode') === 'true' || (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches),
         toggleTheme() {
@@ -38,26 +38,26 @@
     }"
     x-init="$watch('darkMode', val => val ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark')); if(darkMode) document.documentElement.classList.add('dark');"
   >
-    <nav class="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50 dark:bg-gray-800/80 dark:border-gray-700 transition-colors duration-300">
+    <nav class="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-50 transition-colors duration-300">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
-            <a class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent flex items-center gap-2 hover:opacity-80 transition-opacity" href="{{ route('home') }}">
-                <i class="bi bi-map-fill text-blue-600 dark:text-blue-400"></i> 
+            <a class="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent flex items-center gap-2 hover:opacity-80 transition-opacity" href="{{ route('home') }}">
+                <i class="bi bi-map-fill text-primary"></i> 
                 <span>MapContour IOT</span>
             </a>
             
             <div class="flex items-center gap-4">
-                <a class="text-gray-600 hover:text-blue-600 font-medium transition-colors dark:text-gray-300 dark:hover:text-blue-400 {{ request()->routeIs('home') ? '!text-blue-600 dark:!text-blue-400' : '' }}" href="{{ route('home') }}">
+                <a class="text-muted-foreground hover:text-primary font-medium transition-colors {{ request()->routeIs('home') ? '!text-primary' : '' }}" href="{{ route('home') }}">
                     Home
                 </a>
                 
                 <!-- Dark Mode Toggle -->
                 <button 
                     @click="toggleTheme()" 
-                    class="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    class="w-11 h-11 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-md"
                     aria-label="Toggle Dark Mode"
                 >
-                    <i class="bi" :class="darkMode ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i>
+                    <i class="bi text-lg transition-transform duration-500" :class="darkMode ? 'bi-moon-stars-fill rotate-[360deg]' : 'bi-sun-fill rotate-0'"></i>
                 </button>
             </div>
         </div>
@@ -91,10 +91,10 @@
         @yield('content')
     </main>
 
-    <footer class="bg-white border-t border-gray-200 mt-auto py-8 dark:bg-gray-800 dark:border-gray-700 transition-colors duration-300">
+    <footer class="bg-background border-t border-border mt-auto py-8 transition-colors duration-300">
         <div class="container mx-auto px-4 text-center">
-            <p class="text-gray-500 text-sm dark:text-gray-400">
-                &copy; {{ date('Y') }} <span class="font-semibold text-gray-700 dark:text-gray-200">MapContour IOT</span>. All rights reserved.
+            <p class="text-muted-foreground text-sm">
+                &copy; {{ date('Y') }} <span class="font-semibold text-foreground">MapContour IOT</span>. All rights reserved.
             </p>
         </div>
     </footer>

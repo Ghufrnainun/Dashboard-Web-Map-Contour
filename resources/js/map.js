@@ -248,7 +248,7 @@ window.addLegend = function (map, breaks) {
     legend.onAdd = function (map) {
         const div = L.DomUtil.create(
             "div",
-            "info legend bg-white p-3 rounded shadow-md text-sm"
+            "info legend bg-card p-3 rounded shadow-md text-sm border border-border text-card-foreground"
         );
         div.style.lineHeight = "1.5";
 
@@ -262,7 +262,7 @@ window.addLegend = function (map, breaks) {
                 border-radius: 2px;
                 margin-bottom: 5px;
             "></div>
-            <div class="flex justify-between text-xs text-gray-600">
+            <div class="flex justify-between text-xs text-muted-foreground">
                 <span>${Math.round(breaks[0])}</span>
                 <span>${Math.round(breaks[2])}</span>
             </div>
