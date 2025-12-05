@@ -71,6 +71,18 @@
                             <i class="bi bi-geo-alt"></i> Marker
                         </span>
                     </label>
+                    <div class="w-px h-4 bg-border"></div>
+                    <label class="cursor-pointer px-4 py-2 rounded-xl transition-all border border-transparent has-[:checked]:bg-red-50 has-[:checked]:border-red-200 has-[:checked]:text-red-600 has-[:checked]:shadow-sm dark:has-[:checked]:bg-red-900/20 dark:has-[:checked]:border-red-800 dark:has-[:checked]:text-red-400 hover:bg-muted">
+                        <input type="checkbox" id="toggle-record-gps" class="sr-only">
+                        <span class="text-sm font-bold flex items-center gap-2.5">
+                            <span id="recording-status" class="hidden relative flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            <i class="bi bi-broadcast" id="idle-icon"></i>
+                            <span id="gps-btn-text">Rekam GPS</span>
+                        </span>
+                    </label>
                 </div>
             </div>
             
@@ -196,7 +208,9 @@
     let map;
     let markers = [];
     let contourLayer = null;
-    let currentData = [];
+    
+    // Initialize with server-side data
+    let currentData = @json($measurements);
     
     // Pagination Variables
     let currentPage = 1;
@@ -240,7 +254,17 @@
             }
         });
 
-        loadData();
+        // Toggle Record GPS Listener
+        document.getElementById('toggle-record-gps').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                startRecordingGPS();
+            } else {
+                stopRecordingGPS();
+            }
+        });
+
+        // Initial Render with server-side data
+        renderDashboard(currentData);
 
         // Handle Print Events to resize map
         window.addEventListener('beforeprint', () => {
@@ -265,21 +289,24 @@
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
-                currentData = data; // Store raw data
-                sortedData = data.slice().reverse(); // Default sort: newest first
-                
-                updateStats(data);
-                updateTable(); // Initial render
-                updateMap(data);
-                
-                // Generate contours if checkbox is checked
-                if (document.getElementById('toggle-contours').checked) {
-                    updateContours(data);
-                }
-                
-                console.log("Data loaded:", data);
+                renderDashboard(data);
+                console.log("Data reloaded:", data);
             })
             .catch(error => console.error('Error fetching data:', error));
+    }
+
+    function renderDashboard(data) {
+        currentData = data; // Store raw data
+        sortedData = data.slice().reverse(); // Default sort: newest first
+        
+        updateStats(data);
+        updateTable(); // Initial render
+        updateMap(data);
+        
+        // Generate contours if checkbox is checked
+        if (document.getElementById('toggle-contours').checked) {
+            updateContours(data);
+        }
     }
 
     function updateStats(data) {
@@ -340,33 +367,12 @@
         const bounds = L.latLngBounds();
 
         data.forEach(item => {
+            addSingleMarker(item);
+            
+            // Extend bounds
             const lat = parseFloat(item.latitude);
             const lng = parseFloat(item.longitude);
-            
             if (!isNaN(lat) && !isNaN(lng)) {
-                const popupContent = `
-                    <div class="font-sans text-sm min-w-[200px]">
-                        <div class="font-bold mb-2 text-foreground border-b border-border pb-1">Data Point</div>
-                        <div class="grid grid-cols-[80px_1fr] gap-y-1">
-                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Time</span>
-                            <span class="font-mono text-foreground text-xs">${new Date(item.created_at).toLocaleString()}</span>
-                            
-                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Alt</span>
-                            <span class="font-mono text-foreground text-xs font-bold">${item.altitude} m</span>
-                            
-                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Pressure</span>
-                            <span class="font-mono text-foreground text-xs">${item.pressure || '-'} hPa</span>
-                        </div>
-                    </div>
-                `;
-                const marker = window.addMarker(map, lat, lng, popupContent);
-                markers.push(marker);
-                
-                // Hide if checkbox is unchecked
-                if (!document.getElementById('toggle-markers').checked) {
-                    marker.remove();
-                }
-                
                 bounds.extend([lat, lng]);
             }
         });
@@ -526,6 +532,215 @@
             console.error('Error:', error);
             alert('Terjadi kesalahan saat menghapus data');
         });
+    }
+
+    // GPS Recording Logic
+    let watchId = null;
+    let wakeLock = null;
+
+    async function startRecordingGPS() {
+        if (!navigator.geolocation) {
+            showToast("Geolocation tidak didukung oleh browser ini.", "error");
+            document.getElementById('toggle-record-gps').checked = false;
+            return;
+        }
+
+        // Request Wake Lock
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch (err) {
+            console.log('Wake Lock error:', err);
+        }
+
+        // Update UI
+        document.getElementById('recording-status').classList.remove('hidden');
+        document.getElementById('idle-icon').classList.add('hidden');
+        document.getElementById('gps-btn-text').textContent = "Stop Rekam";
+        
+        showToast("Memulai perekaman GPS...", "info");
+
+        watchId = navigator.geolocation.watchPosition(sendPosition, handleGpsError, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+    }
+
+    function stopRecordingGPS() {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        
+        // Release Wake Lock
+        if (wakeLock !== null) {
+            wakeLock.release()
+                .then(() => { wakeLock = null; });
+        }
+
+        // Update UI
+        document.getElementById('recording-status').classList.add('hidden');
+        document.getElementById('idle-icon').classList.remove('hidden');
+        document.getElementById('gps-btn-text').textContent = "Rekam GPS";
+        
+        showToast("Perekaman GPS dihentikan.", "info");
+    }
+
+    function sendPosition(position) {
+        const payload = {
+            project_id: projectId,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            altitude: position.coords.altitude, 
+            pressure: null 
+        };
+
+        fetch('/api/record', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log("GPS Recorded:", result);
+            
+            // Use the data returned from server to ensure consistency (e.g. default altitude)
+            const newData = result.data;
+
+            // Update local data
+            currentData.push(newData);
+            sortedData.unshift(newData); // Add to top of list
+
+            // Update UI components incrementally
+            updateStats(currentData);
+            
+            // Only update table if we are on the first page
+            if (currentPage === 1) {
+                updateTable();
+            }
+            
+            // Add single marker to map
+            addSingleMarker(newData);
+            
+            // Update contours if active (this is heavy, maybe throttle?)
+            if (document.getElementById('toggle-contours').checked) {
+                updateContours(currentData);
+            }
+            
+            showToast("Data GPS tersimpan.", "success");
+        })
+        .catch(error => {
+            console.error("Error recording GPS:", error);
+            showToast("Gagal menyimpan data GPS.", "error");
+        });
+    }
+
+    function handleGpsError(error) {
+        console.warn(`GPS ERROR(${error.code}): ${error.message}`);
+        let msg = "Gagal mengambil lokasi GPS.";
+        if (error.code === 1) msg = "Izin GPS ditolak.";
+        else if (error.code === 2) msg = "Lokasi tidak tersedia.";
+        else if (error.code === 3) msg = "Waktu permintaan habis.";
+        
+        showToast(msg, "error");
+        
+        // Don't stop immediately on timeout, retry might happen. 
+        // Only stop on permission denied.
+        if (error.code === 1) {
+            document.getElementById('toggle-record-gps').checked = false;
+            stopRecordingGPS();
+        }
+    }
+
+    // Helper to add a single marker (extracted from updateMap)
+    function addSingleMarker(item) {
+        if (!map) return;
+        
+        const lat = parseFloat(item.latitude);
+        const lng = parseFloat(item.longitude);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+            const popupContent = `
+                <div class="font-sans text-sm min-w-[200px]">
+                    <div class="font-bold mb-2 text-foreground border-b border-border pb-1">Data Point</div>
+                    <div class="grid grid-cols-[80px_1fr] gap-y-1">
+                        <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Time</span>
+                        <span class="font-mono text-foreground text-xs">${new Date(item.created_at).toLocaleString()}</span>
+                        
+                        <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Alt</span>
+                        <span class="font-mono text-foreground text-xs font-bold">${item.altitude} m</span>
+                        
+                        <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Pressure</span>
+                        <span class="font-mono text-foreground text-xs">${item.pressure || '-'} hPa</span>
+                    </div>
+                </div>
+            `;
+            const marker = window.addMarker(map, lat, lng, popupContent);
+            markers.push(marker);
+            
+            // Hide if checkbox is unchecked
+            if (!document.getElementById('toggle-markers').checked) {
+                marker.remove();
+            }
+            
+            // Optional: Pan to new marker
+            // map.panTo([lat, lng]);
+        }
+    }
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container') || createToastContainer();
+        
+        const toast = document.createElement('div');
+        toast.className = `transform transition-all duration-300 translate-y-full opacity-0 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium min-w-[300px] z-50 mb-3`;
+        
+        const colors = {
+            info: 'bg-card text-foreground border-border',
+            success: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+            error: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
+        };
+        
+        const icons = {
+            info: 'bi-info-circle',
+            success: 'bi-check-circle-fill',
+            error: 'bi-exclamation-circle-fill'
+        };
+
+        toast.classList.add(...colors[type].split(' '));
+        
+        toast.innerHTML = `
+            <i class="bi ${icons[type]} text-lg"></i>
+            <span>${message}</span>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Animate in
+        requestAnimationFrame(() => {
+            toast.classList.remove('translate-y-full', 'opacity-0');
+        });
+        
+        // Remove after 3s
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed bottom-4 right-4 flex flex-col items-end z-50 pointer-events-none';
+        // Allow clicks on toasts
+        container.style.pointerEvents = 'none'; 
+        document.body.appendChild(container);
+        return container;
     }
 </script>
 @endpush

@@ -52,8 +52,11 @@ class ContourController extends Controller
         // Cari project berdasarkan ID, kalau gak ada error 404
         $project = Project::findOrFail($id);
 
+        // Ambil data measurements sekalian biar langsung muncul
+        $measurements = Measurement::where('project_id', $id)->get();
+
         // Kirim data project ke View dashboard.blade.php
-        return view('dashboard', compact('project'));
+        return view('dashboard', compact('project', 'measurements'));
     }
 
     /**
@@ -84,18 +87,24 @@ class ContourController extends Controller
             'project_id' => 'required|exists:projects,id',
             'latitude'   => 'required|numeric',
             'longitude'  => 'required|numeric',
-            'altitude'   => 'required|numeric',
+            'altitude'   => 'nullable|numeric',
             'pressure'   => 'nullable|numeric',
         ]);
 
         // Kalau validasi lolos, simpan ke tabel 'measurements'
-        $data = Measurement::create($validated);
+        // Default altitude ke 0 jika null (karena dari HP mungkin gak ada altitude)
+        $dataInput = $validated;
+        if (!isset($dataInput['altitude']) || $dataInput['altitude'] === null) {
+            $dataInput['altitude'] = 0;
+        }
+
+        $data = Measurement::create($dataInput);
 
         // Balas ke ESP32 (Penting biar alat tau datanya masuk)
         return response()->json([
             'status'  => 'success',
             'message' => 'Data berhasil disimpan',
-            'data_id' => $data->id
+            'data'    => $data // Return full object
         ], 201);
     }
 
