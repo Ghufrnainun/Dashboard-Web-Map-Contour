@@ -29,7 +29,6 @@ return new class extends Migration
             
             // Data Sensor
             $table->float('altitude'); // Ketinggian (meter)
-            $table->decimal('pressure', 8, 2)->nullable(); // Tekanan (hPa)
             
             $table->timestamps();
         });
