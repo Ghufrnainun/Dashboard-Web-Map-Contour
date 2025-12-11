@@ -10,7 +10,7 @@ class Measurement extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'project_id', 'latitude', 'longitude', 'altitude'
+        'project_id', 'latitude', 'longitude', 'altitude', 'pressure'
     ];
 
     public function project(): BelongsTo

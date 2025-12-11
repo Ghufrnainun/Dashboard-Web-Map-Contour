@@ -85,6 +85,7 @@ class ContourController extends Controller
             'latitude'   => 'required|numeric',
             'longitude'  => 'required|numeric',
             'altitude'   => 'required|numeric',
+            'pressure'   => 'nullable|numeric',
         ]);
 
         // Kalau validasi lolos, simpan ke tabel 'measurements'

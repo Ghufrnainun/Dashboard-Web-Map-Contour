@@ -34,6 +34,7 @@ class MeasurementFactory extends Factory
         'latitude'  => $lat,
         'longitude' => $lng,
         'altitude'  => $altitude, // Pakai altitude hasil hitungan bukit
+        'pressure'  => 1013 - ($altitude / 10), // Fisika: makin tinggi, tekanan makin rendah
         'created_at' => $this->faker->dateTimeBetween('-1 hour', 'now'),
     ];
 }
