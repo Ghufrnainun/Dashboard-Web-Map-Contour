@@ -85,10 +85,16 @@ class ContourController extends Controller
             'latitude'   => 'required|numeric',
             'longitude'  => 'required|numeric',
             'altitude'   => 'required|numeric',
+            'speed'      => 'nullable|numeric', // Tambahan untuk tracking
             'pressure'   => 'nullable|numeric',
         ]);
 
         // Kalau validasi lolos, simpan ke tabel 'measurements'
+        // Opsional: jika speed kosong, default ke 0
+        if (!isset($validated['speed'])) {
+            $validated['speed'] = 0;
+        }
+
         $data = Measurement::create($validated);
 
         // Balas ke ESP32 (Penting biar alat tau datanya masuk)

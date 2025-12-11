@@ -42,8 +42,8 @@
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <a class="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent flex items-center gap-2 hover:opacity-80 transition-opacity" href="{{ route('home') }}">
-                <i class="bi bi-map-fill text-primary"></i> 
-                <span>MapContour IOT</span>
+                <img src="{{ asset('images/image.png') }}" alt="Logo" class="w-12 h-12">
+                <span>JOHAR GEMING</span>
             </a>
             
             <div class="flex items-center gap-4">

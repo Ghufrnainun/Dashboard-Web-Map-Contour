@@ -54,14 +54,14 @@
                     <div class="p-2 bg-secondary text-secondary-foreground rounded-lg">
                         <i class="bi bi-map-fill"></i>
                     </div>
-                    Visualisasi Kontur
+                    Real-time Tracking
                 </h5>
                 
                 <div class="flex items-center gap-2 bg-muted p-1 rounded-xl border border-border">
                     <label class="cursor-pointer px-3 py-1.5 rounded-lg transition-all has-[:checked]:bg-card has-[:checked]:text-primary has-[:checked]:shadow-sm">
-                        <input type="checkbox" id="toggle-contours" class="sr-only" checked>
+                        <input type="checkbox" id="toggle-history" class="sr-only">
                         <span class="text-sm font-semibold flex items-center gap-2">
-                            <i class="bi bi-layers"></i> Kontur
+                            <i class="bi bi-clock-history"></i> History
                         </span>
                     </label>
                     <div class="w-px h-4 bg-border"></div>
@@ -195,7 +195,6 @@
     const apiUrl = "{{ route('projects.data', $project->id) }}";
     let map;
     let markers = [];
-    let contourLayer = null;
     let currentData = [];
     
     // Pagination Variables
@@ -212,31 +211,25 @@
             console.error('Map functions not loaded properly');
         }
 
-        // Toggle Contours Listener
-        document.getElementById('toggle-contours').addEventListener('change', function(e) {
-            if (e.target.checked) {
-                if (!contourLayer && currentData.length > 0) {
-                    updateContours(currentData);
-                } else if (contourLayer) {
-                    map.addLayer(contourLayer);
-                }
-            } else {
-                if (contourLayer) {
-                    map.removeLayer(contourLayer);
-                }
-                if (window.currentLegend) {
-                    map.removeControl(window.currentLegend);
-                    window.currentLegend = null;
-                }
-            }
-        });
-
         // Toggle Markers Listener
         document.getElementById('toggle-markers').addEventListener('change', function(e) {
             if (e.target.checked) {
                 markers.forEach(marker => marker.addTo(map));
             } else {
                 markers.forEach(marker => marker.remove());
+            }
+        });
+
+        // Toggle History Listener
+        document.getElementById('toggle-history').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                if (currentData.length > 0) {
+                    updateHistoryLine(currentData);
+                }
+            } else {
+                if (window.trackingPolyline) {
+                    map.removeLayer(window.trackingPolyline);
+                }
             }
         });
 
@@ -262,6 +255,7 @@
     });
 
     function loadData() {
+        console.log("Fetching data...");
         fetch(apiUrl)
             .then(response => response.json())
             .then(data => {
@@ -272,15 +266,18 @@
                 updateTable(); // Initial render
                 updateMap(data);
                 
-                // Generate contours if checkbox is checked
-                if (document.getElementById('toggle-contours').checked) {
-                    updateContours(data);
+                // Update history if enabled
+                if (document.getElementById('toggle-history').checked) {
+                    updateHistoryLine(data);
                 }
                 
-                console.log("Data loaded:", data);
+                // console.log("Data loaded:", data);
             })
             .catch(error => console.error('Error fetching data:', error));
     }
+
+    // Auto Refresh every 3 seconds for realtime tracking
+    setInterval(loadData, 3000);
 
     function updateStats(data) {
         if (!data || data.length === 0) {
@@ -291,6 +288,7 @@
 
         const altitudes = data.map(item => parseFloat(item.altitude)).filter(val => !isNaN(val));
         
+        // Update Altitude Stats
         if (altitudes.length > 0) {
             const maxAlt = Math.max(...altitudes);
             const minAlt = Math.min(...altitudes);
@@ -300,31 +298,20 @@
         }
     }
 
-    function updateContours(data) {
-        if (!map || !window.generateContours) return;
-        
-        // Remove existing layer if any
-        if (contourLayer) {
-            map.removeLayer(contourLayer);
-            contourLayer = null;
-        }
-        if (window.currentLegend) {
-            map.removeControl(window.currentLegend);
-            window.currentLegend = null;
+    function updateHistoryLine(data) {
+        if (!map) return;
+
+        if (window.trackingPolyline) {
+            map.removeLayer(window.trackingPolyline);
         }
 
-        try {
-            const result = window.generateContours(map, data);
-            if (result) {
-                contourLayer = result.layer;
-                // Add legend
-                if (window.addLegend) {
-                    window.currentLegend = window.addLegend(map, result.breaks, result.palette);
-                }
-            }
-        } catch (e) {
-            console.error("Error generating contours:", e);
-        }
+        const pathCoordinates = data.map(item => [parseFloat(item.latitude), parseFloat(item.longitude)]);
+        window.trackingPolyline = L.polyline(pathCoordinates, {
+            color: 'blue',
+            weight: 3,
+            opacity: 0.7,
+            dashArray: '10, 10' // Garis putus-putus biar estetik
+        }).addTo(map);
     }
 
     function updateMap(data) {
@@ -339,40 +326,36 @@
         // Create bounds to fit all markers
         const bounds = L.latLngBounds();
 
-        data.forEach(item => {
-            const lat = parseFloat(item.latitude);
-            const lng = parseFloat(item.longitude);
+        // Show only the latest marker (Ojol Style)
+        const latestItem = data[data.length - 1]; // Assuming data is sorted oldest to newest from backend
+        
+        if (latestItem) {
+            const lat = parseFloat(latestItem.latitude);
+            const lng = parseFloat(latestItem.longitude);
             
             if (!isNaN(lat) && !isNaN(lng)) {
+                
                 const popupContent = `
                     <div class="font-sans text-sm min-w-[200px]">
-                        <div class="font-bold mb-2 text-foreground border-b border-border pb-1">Data Point</div>
+                        <div class="font-bold mb-2 text-foreground border-b border-border pb-1">Current Position</div>
                         <div class="grid grid-cols-[80px_1fr] gap-y-1">
-                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Time</span>
-                            <span class="font-mono text-foreground text-xs">${new Date(item.created_at).toLocaleString()}</span>
-                            
                             <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Alt</span>
-                            <span class="font-mono text-foreground text-xs font-bold">${item.altitude} m</span>
+                            <span class="font-mono text-foreground text-xs">${latestItem.altitude} m</span>
                             
-                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Pressure</span>
-                            <span class="font-mono text-foreground text-xs">${item.pressure || '-'} hPa</span>
+                            <span class="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Time</span>
+                            <span class="font-mono text-foreground text-xs">${new Date(latestItem.created_at).toLocaleString()}</span>
                         </div>
                     </div>
                 `;
+                
+                // Add Marker
                 const marker = window.addMarker(map, lat, lng, popupContent);
                 markers.push(marker);
+                marker.openPopup(); // Auto open popup for the single marker
                 
-                // Hide if checkbox is unchecked
-                if (!document.getElementById('toggle-markers').checked) {
-                    marker.remove();
-                }
-                
-                bounds.extend([lat, lng]);
+                // Fit bounds to this single point (zoom in)
+                map.setView([lat, lng], 18); // High zoom for tracking
             }
-        });
-
-        if (markers.length > 0) {
-            map.fitBounds(bounds, { padding: [50, 50] });
         }
     }
 
