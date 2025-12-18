@@ -109,4 +109,18 @@ class ContourController extends Controller
 
         return response()->json(['status' => 'success']);
     }
+    /**
+     * 7. Hapus Project beserta data measurements-nya
+     */
+    public function destroyProject($id)
+    {
+        $project = Project::findOrFail($id);
+        
+        // Hapus measurements terkait (Opsional jika sudah cascade delete di database, tapi aman ditambah)
+        Measurement::where('project_id', $id)->delete();
+        
+        $project->delete();
+
+        return redirect()->route('home')->with('success', 'Project berhasil dihapus!');
+    }
 }

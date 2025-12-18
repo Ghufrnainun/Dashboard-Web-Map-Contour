@@ -31,3 +31,6 @@ Route::get('/project/{id}/data', [ContourController::class, 'getMeasurements'])-
 
 // 5. Hapus Data Pengukuran
 Route::delete('/measurements/{id}', [ContourController::class, 'destroy'])->name('measurements.destroy');
+
+// 6. Hapus Project
+Route::delete('/projects/{id}', [ContourController::class, 'destroyProject'])->name('projects.destroy');

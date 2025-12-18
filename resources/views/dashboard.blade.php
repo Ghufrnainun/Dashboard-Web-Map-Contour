@@ -118,6 +118,15 @@
                     </div>
                     Data Pengukuran
                 </h5>
+                
+                
+                <!-- Filter Status Text (Visible when filtered) -->
+                <div id="filter-status" class="hidden animate-fade-in">
+                    <span class="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold cursor-default">
+                        <i class="bi bi-funnel-fill"></i>
+                        <span>Filtered</span>
+                    </span>
+                </div>
             </div>
             
             <div class="overflow-x-auto flex-1">
@@ -202,6 +211,7 @@
     let currentPage = 1;
     const rowsPerPage = 10;
     let sortedData = [];
+    let filteredData = null; // Store filtered data
     let deleteId = null; // Store ID to delete
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -360,6 +370,17 @@
                     </div>
                 `;
                 const marker = window.addMarker(map, lat, lng, popupContent);
+                
+                
+                // Add click listener for filtering
+                marker.on('popupopen', function() {
+                    filterByMeasurement(item.id);
+                });
+
+                marker.on('popupclose', function() {
+                    resetFilter();
+                });
+
                 markers.push(marker);
                 
                 // Hide if checkbox is unchecked
@@ -376,11 +397,35 @@
         }
     }
 
+    // New Filter Functions
+    function filterByMeasurement(id) {
+        filteredData = currentData.filter(item => item.id == id);
+        currentPage = 1;
+        updateTable();
+        
+        // Show filter status
+        const statusEl = document.getElementById('filter-status');
+        if (statusEl) statusEl.classList.remove('hidden');
+    }
+
+    function resetFilter() {
+        filteredData = null;
+        currentPage = 1;
+        updateTable();
+        
+        // Hide filter status
+        const statusEl = document.getElementById('filter-status');
+        if (statusEl) statusEl.classList.add('hidden');
+    }
+
     function updateTable() {
         const tbody = document.querySelector('#data-table tbody');
         tbody.innerHTML = '';
+        
+        // Determine which data source to use
+        const sourceData = filteredData || sortedData;
 
-        if (sortedData.length === 0) {
+        if (sourceData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-sm text-muted-foreground">Belum ada data pengukuran.</td></tr>';
             updatePaginationControls();
             return;
@@ -389,7 +434,7 @@
         // Pagination Logic
         const startIndex = (currentPage - 1) * rowsPerPage;
         const endIndex = startIndex + rowsPerPage;
-        const pageData = sortedData.slice(startIndex, endIndex);
+        const pageData = sourceData.slice(startIndex, endIndex);
 
         pageData.forEach(item => {
             const date = new Date(item.created_at);
@@ -421,7 +466,8 @@
     }
 
     function updatePaginationControls() {
-        const totalPages = Math.ceil(sortedData.length / rowsPerPage);
+        const sourceData = filteredData || sortedData;
+        const totalPages = Math.ceil(sourceData.length / rowsPerPage);
         const pageInfo = document.getElementById('page-info');
         const btnPrev = document.getElementById('btn-prev');
         const btnNext = document.getElementById('btn-next');

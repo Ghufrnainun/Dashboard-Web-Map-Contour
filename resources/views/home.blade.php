@@ -97,11 +97,20 @@
                 
                 <p class="text-muted-foreground text-sm mb-6 line-clamp-2 h-10 relative z-10">{{ $project->description ?? 'Tidak ada deskripsi tambahan untuk project ini.' }}</p>
                 
-                <div class="flex items-center justify-between pt-4 border-t border-border relative z-10">
+                <div class="flex items-center justify-between pt-4 border-t border-border relative z-30">
                     <span class="text-xs font-mono text-muted-foreground">ID: #{{ $project->id }}</span>
-                    <span class="text-primary text-sm font-bold group-hover:translate-x-1 transition-transform duration-200 flex items-center gap-1">
-                        Buka Project <i class="bi bi-arrow-right"></i>
-                    </span>
+                    <div class="flex items-center gap-3">
+                        <form action="{{ route('projects.destroy', $project->id) }}" method="POST" class="relative z-30" onsubmit="return confirm('Apakah Anda yakin ingin menghapus project ini? Data tidak dapat dikembalikan.')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-red-500 text-sm font-bold px-3 py-1 rounded border border-transparent hover:border-red-500 hover:bg-red-500 hover:text-black transition-all duration-300">
+                                Hapus
+                            </button>
+                        </form>
+                        <span class="text-primary text-sm font-bold group-hover:translate-x-1 transition-transform duration-200 flex items-center gap-1">
+                            Buka Project <i class="bi bi-arrow-right"></i>
+                        </span>
+                    </div>
                 </div>
 
                 <a href="{{ route('projects.show', $project->id) }}" class="absolute inset-0 z-20">
